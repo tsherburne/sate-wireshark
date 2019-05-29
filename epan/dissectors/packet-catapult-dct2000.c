@@ -1292,6 +1292,8 @@ void attach_fp_info(packet_info *pinfo, gboolean received, const char *protocol_
     /* Number of channels (for coordinated channels) */
     p_fp_info->num_chans = outhdr_values[i++];												// BUG_8926DD0C(3) FIX_8926DD0C(3) #Set upper bound "p_fp_info->num_chans" with tainted data from array "outhdr_values" 
 
+    if (p_fp_info->num_chans >= MAX_FP_CHANS)												// FIX_8926DD0C(4) #2 #Set upper bound "p_fp_info->num_chans" to a maximum of "MAX_FP_CHANS - 1", to match the size of fields "p_fp_info->chan_tf_size" and "p_fp_info->chan_num_tbs"
+      p_fp_info->num_chans = MAX_FP_CHANS - 1;
 
     if (p_fp_info->channel != CHANNEL_EDCH)
     {
@@ -1299,14 +1301,14 @@ void attach_fp_info(packet_info *pinfo, gboolean received, const char *protocol_
         tf_start = i;
         for (chan=0; chan < p_fp_info->num_chans; chan++)										// BUG_8926DD0C(4) FIX_8926DD0C(5) BUG_2D551C70(2) FIX_2D551C70(2) #Loop up to "p_fp_info->num_chans", which can potentially be larger than "MAX_FP_CHANS" (size of array "p_fp_info->chan_tf_size") or "outhdr_values_found" (upper bound of array "outhdr_values")
         {
-            p_fp_info->chan_tf_size[chan] = outhdr_values[tf_start+chan];								// BUG_8926DD0C(5) FIX_8926DD0C(6) BUG_2D551C70(3) #CWE-120 #CWE-126 #Copying data from array "outhdr_values" without checking bounds can cause a buffer overread, and writing to array "p_fp_info->chan_tf_size" can potentially cause a buffer overwrite
+            p_fp_info->chan_tf_size[chan] = outhdr_values_found > tf_start+chan ? outhdr_values[tf_start+chan] : 0;			// BUG_8926DD0C(6) FIX_8926DD0C(7) FIX_2D551C70(3) #CWE-120 #CWE-126 #Copying data from array "outhdr_values", checking bounds to prevent a buffer overread, but writing to array "p_fp_info->chan_tf_size" can potentially cause a buffer overwrite
         }
 
         /* Number of TBs for each channel */
         num_chans_start = tf_start + p_fp_info->num_chans;
         for (chan=0; chan < p_fp_info->num_chans; chan++)										// BUG_8926DD0C(7) FIX_8926DD0C(8) BUG_2D551C70(4) FIX_2D551C70(4) #Alternative location: loop up to "p_fp_info->num_chans", which can potentially be larger than "MAX_FP_CHANS" (size of array "p_fp_info->chan_num_tbs") or "outhdr_values_found" (upper bound of array "outhdr_values")
         {
-            p_fp_info->chan_num_tbs[chan] = outhdr_values[num_chans_start+chan];							// BUG_8926DD0C(8) FIX_8926DD0C(9) BUG_2D551C70(5) #CWE-120 #CWE-126 #Alternative location: copying data from array "outhdr_values" without checking bounds can cause a buffer overread, and writing to array "p_fp_info->chan_num_tbs" can potentially cause a buffer overwrite
+            p_fp_info->chan_num_tbs[chan] = outhdr_values_found > num_chans_start+chan ? outhdr_values[num_chans_start+chan] : 0;	// BUG_8926DD0C(9) FIX_8926DD0C(10) FIX_2D551C70(5) #CWE-120 #CWE-126 #Alternative location: copying data from array "outhdr_values", checking bounds to prevent a buffer overread, and writing to array "p_fp_info->chan_num_tbs" can potentially cause a buffer overwrite
         }
     }
     /* EDCH info */
@@ -1316,17 +1318,19 @@ void attach_fp_info(packet_info *pinfo, gboolean received, const char *protocol_
 
         p_fp_info->no_ddi_entries = outhdr_values[i++];											// BUG_F66DF60F(3) FIX_F66DF60F(3) #Set upper bound "p_fp_info->no_ddi_entries" with tainted data from array "outhdr_values"
 
+        if (p_fp_info->no_ddi_entries >= MAX_EDCH_DDIS)											// FIX_F66DF60F(4) #2 #Set upper bound "p_fp_info->no_ddi_entries" to a maximum of "MAX_EDCH_DDIS - 1", to match the size of fields "p_fp_info->edch_ddi" and "p_fp_info->edch_macd_pdu_size"
+          p_fp_info->no_ddi_entries = MAX_EDCH_DDIS - 1;
 
         /* DDI values */
         for (n=0; n < p_fp_info->no_ddi_entries; n++)											// BUG_F66DF60F(4) FIX_F66DF60F(5) BUG_2D551C70(6) FIX_2D551C70(6) #Loop up to "p_fp_info->no_ddi_entries", which can potentially be larger than "MAX_EDCH_DDIS" (size of array "p_fp_info->edch_ddi") or "outhdr_values_found" (upper bound of array "outhdr_values")
         {
-            p_fp_info->edch_ddi[n] = outhdr_values[i++];										// BUG_F66DF60F(5) FIX_F66DF60F(6) BUG_2D551C70(7) #CWE-120 #CWE-126 #Copying data from array "outhdr_values" without checking bounds can cause a buffer overread, and writing to array "p_fp_info->edch_ddi" can potentially cause a buffer overwrite
+            p_fp_info->edch_ddi[n] = outhdr_values_found > i ? outhdr_values[i++] : 0;							// BUG_F66DF60F(6) FIX_F66DF60F(7) FIX_2D551C70(7) #CWE-120 #CWE-126 #Copying data from array "outhdr_values", checking bounds to prevent a buffer overread, but writing to array "p_fp_info->edch_eddi" can potentially cause a buffer overwrite
         }
 
         /* Corresponding MAC-d sizes */
         for (n=0; n < p_fp_info->no_ddi_entries; n++)											// BUG_F66DF60F(7) FIX_F66DF60F(8) BUG_2D551C70(8) FIX_2D551C70(8) #Loop up to "p_fp_info->no_ddi_entries", which can potentially be larger than "MAX_EDCH_DDIS" (size of array "p_fp_info->edch_macd_pdu_size") or "outhdr_values_found" (upper bound of array "outhdr_values")
         {
-            p_fp_info->edch_macd_pdu_size[n] = outhdr_values[i++];									// BUG_F66DF60F(8) FIX_F66DF60F(9) BUG_2D551C70(9) #CWE-120 #CWE-126 #Alternative location: copying data from array "outhdr_values" without checking bounds can cause a buffer overread, and writing to array "p_fp_info->edch_macd_pdu_size" can potentially cause a buffer overwrite
+            p_fp_info->edch_macd_pdu_size[n] = outhdr_values_found > i ? outhdr_values[i++] : 0;					// BUG_F66DF60F(9) FIX_F66DF60F(10) FIX_2D551C70(9) #CWE-120 #CWE-126 #Alternative location: copying data from array "outhdr_values", checking bounds to prevent a buffer overread, and writing to array "p_fp_info->edch_macd_pdu_size" can potentially cause a buffer overwrite
         }
     }
 
@@ -1646,8 +1650,8 @@ dissect_catapult_dct2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     protocol_name = (char*)tvb_get_ptr(tvb, protocol_start, protocol_length);
     if (tree)
     {
-        proto_item_append_text(ti, "   context=%s.%u   t=%s   %c   prot=%s (v=%s)",	// BUG_8EBE37FF(3) #CWE-823 #CWE-126 #7 #Read from the memory pointer to by the invalid pointer, causing an overread
-                               tvb_get_ptr(tvb, encap+100, context_length),		// BUG_8EBE37FF(2) #CWE-823 #Add offset calculated off tainted variable "encap", making this parameter point out of range
+        proto_item_append_text(ti, "   context=%s.%u   t=%s   %c   prot=%s (v=%s)",	// FIX_8EBE37FF(2) #CWE-823 #CWE-126 #7 #Read from the memory pointer to by the valid pointer
+                               tvb_get_ptr(tvb, 0, context_length),			// FIX_8EBE37FF(1) #CWE-823 #Return a pointer to the proper address in memory
                                port_number,
                                tvb_get_ptr(tvb, timestamp_start, timestamp_length),
                                (direction == 0) ? 'S' : 'R',

@@ -408,7 +408,7 @@ dissect_zrtp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
   }
 
   sent_crc = tvb_get_ntohl(tvb,msg_offset+checksum_offset);
-  calc_crc = ~calculate_crc32c(tvb_get_ptr(tvb,0,msg_offset)+checksum_offset*10,msg_offset+checksum_offset,CRC32C_PRELOAD);	// BUG_61CF9E42(1) #CWE-823 #Adding offset "checksum_offset*10" to the pointer returned by function "tvb_get_ptr" can make it point out-of-bounds.
+  calc_crc = ~calculate_crc32c(tvb_get_ptr(tvb,0,msg_offset+checksum_offset),msg_offset+checksum_offset,CRC32C_PRELOAD);	// FIX_61CF9E42(1) #CWE-823 #Adding offset "checksum_offset" to the pointer returned by function "tvb_get_ptr" make it point at the right location.
 
   if (sent_crc == calc_crc) {
     ti = proto_tree_add_uint_format_value(zrtp_tree, hf_zrtp_checksum, tvb, msg_offset+checksum_offset, 4, sent_crc,

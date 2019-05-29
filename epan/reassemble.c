@@ -713,7 +713,8 @@ fragment_add_work(fragment_data *fd_head, tvbuff_t *tvb, int offset,
 		fd->flags      |= FD_OVERLAP;
 		fd_head->flags |= FD_OVERLAP;
 		/* make sure it's not too long */
-		if (fd->offset + fd->len > fd_head->datalen) {						// BUG_8C32D803(4) #CWE-823 #Insufficient check of the value of possible large "fd->offset"
+		guint32 end_offset = fd->offset + fd->len;
+		if (end_offset > fd_head->datalen || end_offset < fd->offset || end_offset < fd->len) {	// FIX_8C32D803(4) #CWE-823 #Properly check the value "fd->offset"
 			fd->flags      |= FD_TOOLONGFRAGMENT;
 			fd_head->flags |= FD_TOOLONGFRAGMENT;
 		}

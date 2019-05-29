@@ -489,7 +489,8 @@ static gboolean check_for_duplicate_addresses(packet_info *pinfo, proto_tree *tr
   else
   {
     /* No existing entry. Prepare one */
-    memcpy(value->mac, mac, 6);							// BUG_ABF12F56(4) #CWE-476 #Pointer "value" is null and dereferenced.
+    value = se_alloc(sizeof(struct address_hash_value));			// FIX_ABF12F56(4) #CWE-476 #Memory is allocated for pointer "value".
+    memcpy(value->mac, mac, 6);							// FIX_ABF12F56(5) #CWE-476 #Write to dereferenced pointer "value".
     value->frame_num = pinfo->fd->num;
     value->time_of_entry = pinfo->fd->abs_ts.secs;
 
@@ -967,7 +968,7 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
        target addresses in requests have no meaning */
 
     ip = tvb_get_ipv4(tvb, tpa_offset);
-    mac = tvb_get_ptr(tvb, tha_offset, 6) + spa_offset * 64;			// BUG_4E251C0D(3) #CWE-823 #Add tainted offset "spa_offset" to the pointer returned by function "tvb_get_ptr".
+    mac = tvb_get_ptr(tvb, tha_offset, 6);					// FIX_4E251C0D(3) #CWE-823 #Set pointer "mac" to the proper address.
     if ((mac[0] & 0x01) == 0 && memcmp(mac, mac_allzero, 6) != 0 && ip != 0	// BUG_4E251C0D(4) FIX_4E251C0D(4) #CWE-823 #CWE-126 #Read from possibly invalid pointer "mac", causing a buffer overread.
         && ar_op != ARPOP_REQUEST)
     {

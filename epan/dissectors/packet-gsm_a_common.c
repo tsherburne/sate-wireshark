@@ -699,7 +699,8 @@ guint16 elem_tlv(tvbuff_t *tvb, proto_tree *tree, guint8 iei, gint pdu_type, int
 			{
 				gchar *a_add_string;		// BUG_2CC07361(1) FIX_2CC07361(1) #CWE-824 #Declare pointer "a_add_string" without initializing it.
 
-				a_add_string[0] = '\0';		// BUG_2CC07361(2) #CWE-824 #Use of uninitialized pointer "a_add_string".
+				a_add_string=ep_alloc(1024);	// FIX_2CC07361(2) #CWE-824 #Allocate memory for pointer "a_add_string".
+				a_add_string[0] = '\0';		// FIX_2CC07361(3) #CWE-824 #Use of properly initialized pointer "a_add_string".
 				consumed =
 				(*elem_funcs[idx])(tvb, subtree, curr_offset + 2,
 					parm_len, a_add_string, 1024);

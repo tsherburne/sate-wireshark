@@ -326,6 +326,9 @@ dissect_packet(epan_dissect_t *edt, union wtap_pseudo_header *pseudo_header,
     
 	TRY {
 
+		if (fd->pkt_len > G_MAXINT && fd->pkt_len != (guint)-1) {				// FIX_245F0BFF(1) #Make sure "fd->pkt_len" won't overflow when converted to a signed integer
+			fd->pkt_len = G_MAXINT;
+		}
 
 		edt->tvb = tvb_new_real_data(pd, fd->cap_len, fd->pkt_len);				// BUG_245F0BFF(1) FIX_245F0BFF(2) #CWE-196 #Pass unsinged integer "fd->pkt_len", converting it into a signed integer that can potentially overflow
 

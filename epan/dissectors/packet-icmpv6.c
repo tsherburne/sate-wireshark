@@ -568,6 +568,7 @@ again:
 		/* Certificate */
 
 		if(cert_type == 1){
+			asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);										// FIX_848E3C4E(2) #CWE-457 #initializing structure "asn1_ctx" before using it
 			opt_offset = dissect_x509af_Certificate(FALSE, tvb, opt_offset, &asn1_ctx, icmp6opt_tree, hf_icmpv6_x509af_Certificate);	// BUG_848E3C4E(2) FIX_848E3C4E(3) #CWE-457 #Pass address of potentially uninitialized structure "asn1_ctx" to function "dissect_x509af_Certificate"
 			par_len = len - (opt_offset - offset);
 			/* Padding */

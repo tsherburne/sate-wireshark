@@ -12004,6 +12004,7 @@ dissect_nds_request(tvbuff_t *tvb, packet_info *pinfo,
                			; /* nothing */
                			break;
                	}
+		if(ptvc)								// FIX_6215DE11(3) #CWE-476 #Check if pointer "ptvc" is NULL before using it
                	ptvcursor_free(ptvc);							// BUG_6215DE11(3) FIX_6215DE11(4) #CWE-476 #Pass pointer "ptvc", which can be NULL, to function "ptvcursor_free"
 
                	/* Free the temporary proto_tree */

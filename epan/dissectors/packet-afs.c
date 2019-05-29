@@ -416,17 +416,10 @@ static gint ett_afs_vldb_flags = -1;
 
 #define OUT_RXString(field) \
 	{	guint32 i_orxs,len_orxs; \
-		char *tmp_orxs; \
-		const guint8 *p_orxs; \
-		i_orxs = tvb_get_ntohl(tvb, offset);/* BUG_D894FECC(1) #CWE-125 #Read size from packet*/ \
-		offset += 4; \
-		p_orxs = tvb_get_ptr(tvb,offset,i_orxs); /* BUG_D894FECC(2) #CWE-125 #Access packet memory directly with a pointer */\
-		len_orxs = ((i_orxs+4-1)/4)*4; \
-		tmp_orxs = ep_alloc(i_orxs+1); \
-		memcpy(tmp_orxs, p_orxs, i_orxs); /* BUG_D894FECC(3) #CWE-125 #Read "i_orxs" bytes from the packet pointer which can lead to an overread */\
-		tmp_orxs[i_orxs] = '\0'; \
-		proto_tree_add_string(tree, field, tvb, offset-4, len_orxs+4, \
-		(void *)tmp_orxs); \
+		i_orxs = tvb_get_ntohl(tvb, offset); /* FIX_D894FECC(1) #CWE-125 #Read size from packet */\
+		len_orxs = ((i_orxs+4-1)/4)*4 + 4; \
+		proto_tree_add_item(tree, field, tvb, offset-4, len_orxs, /* FIX_D894FECC(2) #CWE-125 #Use safe function "proto_tree_add_item" to read string from packet */\
+		FALSE); \
 		offset += len_orxs; \
 	}
 

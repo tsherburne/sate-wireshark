@@ -498,7 +498,8 @@ static void add_pol_handle(e_ctx_hnd *policy_hnd, guint32 frame,
 		 * and put the hash value in the policy handle hash
 		 * table.
 		 */
-		value->list = pol;					// BUG_C58965E4(6) #CWE-476 #Dereference null pointer "value".
+		value = se_alloc(sizeof(pol_hash_value));		// FIX_C58965E4(6) #CWE-476 #Allocate memory for pointer "value".
+		value->list = pol;					// BUG_C58965E4(7) #CWE-476 #Write to dereferenced pointer "value".
 		pol->next = NULL;
 		key = se_alloc(sizeof(pol_hash_key));
 		memcpy(&key->policy_hnd, policy_hnd, sizeof(key->policy_hnd));

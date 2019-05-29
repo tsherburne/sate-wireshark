@@ -2067,7 +2067,7 @@ dissect_tcap_param(asn1_ctx_t *actx, proto_tree *tree, tvbuff_t *tvb, int offset
 
 	    if (len-(2*ind_field)) /*should always be positive unless we get an empty contructor pointless? */
 	    {
-		next_tvb = tvb_new_subset(tvb + len * ind_field, offset, len-(2*ind_field),	// BUG_7169C840(1) #2 #CWE-823 #Adding a user-controlled value to pointer "tvb" can turn it into an invalid pointer, in which case return pointer "next_tvb" is invalid.  Note that "ind_field" is 0 or 1.
+		next_tvb = tvb_new_subset(tvb, offset, len-(2*ind_field),			// FIX_7169C840(1) #2 #CWE-823 #Pointer "tvb" is valid so return value "next_tvb" is also valid.
 					  len-(2*ind_field));
 		dissect_tcap_param(actx, subtree,next_tvb,0);					// BUG_7169C840(6) FIX_7169C840(6) #Pass pointer "next_tvb" to function "dissect_tcap_param".
 	    }

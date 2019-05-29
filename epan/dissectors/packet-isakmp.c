@@ -1036,6 +1036,7 @@ dissect_isakmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 
 #ifdef HAVE_LIBGCRYPT
 
+  pinfo->private_data = NULL;											// FIX_AD8F584C(1) #CWE-824 #Initialize pointer "pinfo->private_data"
 
   if (isakmp_version == 1) {
     SET_ADDRESS(&null_addr, AT_NONE, 0, NULL);

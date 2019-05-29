@@ -257,7 +257,7 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
   fragment_data *fdx
 )
 {
-  guint16 decoded_size;		// BUG_48FA9911(1) #CWE-190 #Declare "decoded_size" as "guint16"
+  guint32 decoded_size;		// FIX_48FA9911(1) #CWE-190 #Declare "decoded_size" as "guint32"
   guint32 c_max;
   guint32 rx_min;
   gboolean first, last;
@@ -272,7 +272,7 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
   first = findex == 0;
   last = fcount == (findex+1);
   c_max = fcount*plen/(rsk+PFT_RS_P);  /* rounded down */
-  decoded_size = fcount*plen;				// BUG_48FA9911(2) #CWE-190 #CWE-131 #The multiplication can produce a result greater than 2^16, leading to an integer overflow if "decoded_size" is of type "guint16". Also, the calculation is wrong a return a size shorter than expected.
+  decoded_size = c_max*rsk+PFT_RS_N_MAX+PFT_RS_P;	// FIX_48FA9911(2) #CWE-190 #CWE-131 #The multiplication can produce a result greater than 2^16, but "decoded_size" is wide enough to contain it. Also, the calculation for the size is correct.
   rx_min = c_max*rsk/plen; // BUG_85B4530F(4) FIX_85B4530F(5) #CWE-369 #Varialbe "plen" can be null, causing an divsion-by-zero exception
   if(rx_min*plen<c_max*rsk)
     rx_min++;
@@ -336,11 +336,11 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
                                             NULL, tree);
     }
   }
-  if(new_tvb) {								// BUG_48FA9911(3) #Don't check if "new_tvb" has enough data left to read
+  if(new_tvb && tvb_length(new_tvb) > 0) {				// FIX_48FA9911(3) #Do check if "new_tvb" has enough data left to read
     gboolean decoded = TRUE;
     tvbuff_t *dtvb = NULL;
     const guint8 *input = tvb_get_ptr(new_tvb, 0, -1);
-    guint16 reassembled_size = tvb_length(new_tvb);			// BUG_DE4059F0(1) #CWE-190 #Get the current packet's length and store it in "reassembled_size", but the length can be larger than 2^16, causing an integer overflow
+    guint32 reassembled_size = tvb_length(new_tvb);			// FIX_DE4059F0(1) #CWE-190 #Get the current packet's length and store it in "reassembled_size", which is of sufficient size to prevent an integer overflow
     guint8 *deinterleaved = (guint8*) g_malloc (reassembled_size);	// BUG_DE4059F0(2) FIX_DE4059F0(2) #CWE-680 #Allocate memory for buffer "deinterleaved" using size "reassembled_size", which may have wrapped around, resulting in a potentially shorter buffer than expected
     guint8 *output = (guint8*) g_malloc (decoded_size);			// BUG_48FA9911(4) FIX_48FA9911(4) #CWE-680 #CWE-131 #Allocate memory for buffer "output" using size "decoded_size", which may have wrapped around, resulting in a potential shorter buffer than expected, or may be too small for its expected use, later causing a buffer overflow.
     rs_deinterleave(input, deinterleaved, plen, fcount);		// BUG_DE4059F0(3) FIX_DE4059F0(3) #Call function "rs_deinterleave", passing short buffer "deinterleaved" as output
@@ -522,6 +522,7 @@ dissect_pft(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree)
       if(li)
         proto_item_append_text(li, " (length error (%d))", real_len);
     }
+    if (real_len)						// FIX_85B4530F(2) #CWE-369 #If the value of variable "real_len" is null, then don't call function "dissect_pft_fragmented"
     next_tvb = dissect_pft_fragmented(tvb, pinfo, pft_tree,	// BUG_85B4530F(2) FIX_85B4530F(3) #4 #Passing possible null variable "real_len" to function "dissect_pft_fragmented"
                                       findex, fcount, seq, offset, real_len,
                                       fec, rsk, rsz

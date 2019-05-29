@@ -2123,7 +2123,8 @@ dissect_negprot_request(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 	if (!pinfo->fd->flags.visited && si->sip) {
 
-		dialects->num = 0;						// BUG_E8EE6FC2(2) #CWE-476 #Pointer "dialects" is null and dereferenced.
+		dialects = se_alloc(sizeof(struct negprot_dialects));		// FIX_E8EE6FC2(2) #CWE-476 #Allocate memory for pointer "dialects".
+		dialects->num = 0;						// FIX_E8EE6FC2(3) #CWE-476 #Pointer "dialects" is valid and dereferenced.
 		si->sip->extra_info_type = SMB_EI_DIALECTS;
 		si->sip->extra_info = dialects;
 	}
@@ -8207,6 +8208,7 @@ dissect_nt_trans_data_request(tvbuff_t *tvb, packet_info *pinfo, int offset, pro
 	case NT_TRANS_IOCTL:
 		/* ioctl data */
 		ioctl_tvb=tvb_new_subset(tvb, offset, MIN((int)bc, tvb_length_remaining(tvb, offset)), bc);
+		if (nti)											// FIX_40CB269F(5) #Check pointer "nti" before dereferencing it
 		dissect_smb2_ioctl_data(ioctl_tvb, pinfo, tree, top_tree, nti->ioctl_function, TRUE);		// BUG_40CB269F(5) FIX_40CB269F(6) #CWE-476 #Potentially null pointer "nti" is dereferenced
 
 
@@ -8427,7 +8429,7 @@ dissect_nt_trans_setup_request(tvbuff_t *tvb, packet_info *pinfo, int offset, pr
 	proto_tree *tree = NULL;
 	int old_offset = offset;
 	smb_info_t *si;
-	smb_nt_transact_info_t *nti;										// BUG_4C4FDA1B(1) #CWE-476 #Declaration without initialization
+	smb_nt_transact_info_t *nti = NULL;									// FIX_4C4FDA1B(1) #CWE-476 #Initializing pointer "nti" to NULL
 	smb_saved_info_t *sip;
 
 
@@ -8435,7 +8437,9 @@ dissect_nt_trans_setup_request(tvbuff_t *tvb, packet_info *pinfo, int offset, pr
 	DISSECTOR_ASSERT(si);
 	sip = si->sip;
 	DISSECTOR_ASSERT(sip);
-	nti=sip->extra_info;
+	if (sip->extra_info_type == SMB_EI_NTI) {
+		nti=sip->extra_info;
+    }
 
 	if(parent_tree){
 		tvb_ensure_bytes_exist(tvb, offset, len);
@@ -8452,7 +8456,7 @@ dissect_nt_trans_setup_request(tvbuff_t *tvb, packet_info *pinfo, int offset, pr
 		guint16 fid;
 
 		/* function code */
-		offset = dissect_smb2_ioctl_function(tvb, pinfo, tree, offset, &nti->ioctl_function);		// BUG_4C4FDA1B(2) #CWE-476 #Can trigger a NULL pointer dereference
+		offset = dissect_smb2_ioctl_function(tvb, pinfo, tree, offset, nti ? &nti->ioctl_function : NULL); // FIX_4C4FDA1B(2) #CWE-476 #Check pointer "nti" before dereferencing it
 
 		/* fid */
 		fid = tvb_get_letohs(tvb, offset);
@@ -10496,7 +10500,7 @@ dissect_transaction2_request_parameters(tvbuff_t *tvb, packet_info *pinfo,
 		/* search pattern */
 		fn = get_unicode_or_ascii_string(tvb, &offset, si->unicode, &fn_len, FALSE, FALSE, &bc);
 		CHECK_STRING_TRANS(fn);
-		if(!t2i->name){											// BUG_A64A9234(3) #CWE-476 #Pointer "t2i" can be null and is dereferenced
+		if(t2i && !t2i->name){										// FIX_A64A9234(3) #CWE-476 #Check the value of pointer "t2i" before dereferencing it
 			t2i->name = se_strdup(fn);								// BUG_A64A9234(4) FIX_A64A9234(4) #CWE-476 #Another dereference of pointer "t2i" that can cause a crash
 		}
 		proto_tree_add_string(tree, hf_smb_search_pattern, tvb, offset, fn_len,
@@ -10593,7 +10597,7 @@ dissect_transaction2_request_parameters(tvbuff_t *tvb, packet_info *pinfo,
 		proto_tree_add_string(tree, hf_smb_file_name, tvb, offset, fn_len,
 			fn);
 		COUNT_BYTES_TRANS(fn_len);
-		if(!t2i->name){											// BUG_A64A9234(5) #CWE-476 #Another location where "t2i" is not checked before being dereferenced
+		if(t2i && !t2i->name){										// FIX_A64A9234(5) #CWE-476 #Another location where "t2i" is checked before being dereferenced
 			t2i->name = se_strdup(fn);								// BUG_A64A9234(6) FIX_A64A9234(6) #CWE-476 #Another possibly problematic dereference of pointer "t2i"
 		}
 

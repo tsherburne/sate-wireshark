@@ -2255,7 +2255,8 @@ static void reinit_http(void) {
 	range_foreach(http_ssl_range, range_delete_http_ssl_callback);
 	g_free(http_ssl_range);
 	
-	range_foreach(http_ssl_range, range_add_http_ssl_callback); // BUG_16D311E6(1) #CWE-416 #Use of 'http_ssl_range' after free.
+	http_ssl_range = range_copy(global_http_ssl_range); // FIX_16D311E6(1) #CWE-416 #Reinitializing 'http_ssl_range' before using it.
+	range_foreach(http_ssl_range, range_add_http_ssl_callback); // FIX_16D311E6(2) #CWE-416 #Use of 'http_ssl_range' after init.
 
 	/* Attempt to add additional headers that might have been added
 	 * one the preferences are applied.

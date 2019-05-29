@@ -497,40 +497,40 @@ dissect_infiniband(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static gint32
 find_next_header_sequence(guint32 OpCode)
 {
-    if(contains(OpCode, &opCode_PAYLD[0], (gint32)sizeof(opCode_PAYLD)))										// BUG_E31410C9(1) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_PAYLD[0], (gint32)sizeof(opCode_PAYLD)/sizeof(opCode_PAYLD[0])))							// FIX_E31410C9(1) #CWE-131 #Passing the correct length to function "contains"
         return PAYLD;
 
-    if(contains(OpCode, &opCode_IMMDT_PAYLD[0], (gint32)sizeof(opCode_IMMDT_PAYLD)))									// BUG_E31410C9(2) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_IMMDT_PAYLD[0], (gint32)sizeof(opCode_IMMDT_PAYLD)/sizeof(opCode_IMMDT_PAYLD[0])))					// FIX_E31410C9(2) #CWE-131 #Passing the correct length to function "contains"
         return IMMDT_PAYLD;
 
-    if(contains(OpCode, &opCode_RDETH_DETH_PAYLD[0], (gint32)sizeof(opCode_RDETH_DETH_PAYLD)))								// BUG_E31410C9(3) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RDETH_DETH_PAYLD[0], (gint32)sizeof(opCode_RDETH_DETH_PAYLD)/sizeof(opCode_RDETH_DETH_PAYLD[0])))			// FIX_E31410C9(3) #CWE-131 #Passing the correct length to function "contains"
         return RDETH_DETH_PAYLD;
 
-    if(contains(OpCode, &opCode_RETH_PAYLD[0], (gint32)sizeof(opCode_RETH_PAYLD)))									// BUG_E31410C9(4) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RETH_PAYLD[0], (gint32)sizeof(opCode_RETH_PAYLD)/sizeof(opCode_RETH_PAYLD[0])))						// FIX_E31410C9(4) #CWE-131 #Passing the correct length to function "contains"
         return RETH_PAYLD;
 
-    if(contains(OpCode, &opCode_RDETH_AETH_PAYLD[0], (gint32)sizeof(opCode_RDETH_AETH_PAYLD)))								// BUG_E31410C9(5) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RDETH_AETH_PAYLD[0], (gint32)sizeof(opCode_RDETH_AETH_PAYLD)/sizeof(opCode_RDETH_AETH_PAYLD[0])))			// FIX_E31410C9(5) #CWE-131 #Passing the correct length to function "contains"
         return RDETH_AETH_PAYLD;
 
-    if(contains(OpCode, &opCode_AETH_PAYLD[0], (gint32)sizeof(opCode_AETH_PAYLD)))									// BUG_E31410C9(6) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_AETH_PAYLD[0], (gint32)sizeof(opCode_AETH_PAYLD)/sizeof(opCode_AETH_PAYLD[0])))						// FIX_E31410C9(6) #CWE-131 #Passing the correct length to function "contains"
         return AETH_PAYLD;
 
-    if(contains(OpCode, &opCode_RDETH_DETH_IMMDT_PAYLD[0], (gint32)sizeof(opCode_RDETH_DETH_IMMDT_PAYLD)))						// BUG_E31410C9(7) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RDETH_DETH_IMMDT_PAYLD[0], (gint32)sizeof(opCode_RDETH_DETH_IMMDT_PAYLD)/sizeof(opCode_RDETH_DETH_IMMDT_PAYLD[0])))	// FIX_E31410C9(7) #CWE-131 #Passing the correct length to function "contains"
         return RDETH_DETH_IMMDT_PAYLD;
 
-    if(contains(OpCode, &opCode_RETH_IMMDT_PAYLD[0], (gint32)sizeof(opCode_RETH_IMMDT_PAYLD)))								// BUG_E31410C9(8) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RETH_IMMDT_PAYLD[0], (gint32)sizeof(opCode_RETH_IMMDT_PAYLD)/sizeof(opCode_RETH_IMMDT_PAYLD[0])))			// FIX_E31410C9(8) #CWE-131 #Passing the correct length to function "contains"
         return RETH_IMMDT_PAYLD;
 
-    if(contains(OpCode, &opCode_RDETH_DETH_RETH_PAYLD[0], (gint32)sizeof(opCode_RDETH_DETH_RETH_PAYLD)))						// BUG_E31410C9(9) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RDETH_DETH_RETH_PAYLD[0], (gint32)sizeof(opCode_RDETH_DETH_RETH_PAYLD)/sizeof(opCode_RDETH_DETH_RETH_PAYLD[0])))	// FIX_E31410C9(9) #CWE-131 #Passing the correct length to function "contains"
         return RDETH_DETH_RETH_PAYLD;
 
-    if(contains(OpCode, &opCode_ATOMICETH[0], (gint32)sizeof(opCode_ATOMICETH)))									// BUG_E31410C9(10) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_ATOMICETH[0], (gint32)sizeof(opCode_ATOMICETH)/sizeof(opCode_ATOMICETH[0])))						// FIX_E31410C9(10) #CWE-131 #Passing the correct length to function "contains"
         return ATOMICETH;
 
-    if(contains(OpCode, &opCode_IETH_PAYLD[0], (gint32)sizeof(opCode_IETH_PAYLD)))									// BUG_E31410C9(11) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_IETH_PAYLD[0], (gint32)sizeof(opCode_IETH_PAYLD)/sizeof(opCode_IETH_PAYLD[0])))						// FIX_E31410C9(11) #CWE-131 #Passing the correct length to function "contains"
         return IETH_PAYLD;
 
-    if(contains(OpCode, &opCode_RDETH_DETH_ATOMICETH[0], (gint32)sizeof(opCode_RDETH_DETH_ATOMICETH)))							// BUG_E31410C9(12) #CWE-131 #Passing a much larger length to function "contains"
+    if(contains(OpCode, &opCode_RDETH_DETH_ATOMICETH[0], (gint32)sizeof(opCode_RDETH_DETH_ATOMICETH)/sizeof(opCode_RDETH_DETH_ATOMICETH[0])))		// FIX_E31410C9(12) #CWE-131 #Passing the correct length to function "contains"
         return RDETH_DETH_ATOMICETH;
     if((OpCode ^ RC_ACKNOWLEDGE) == 0)
         return AETH;
@@ -939,7 +939,6 @@ static void parse_PAYLOAD(proto_tree *parentTree, packet_info *pinfo, tvbuff_t *
 
 
             } else {
-                tvb_free(next_tvb);			// BUG_ACBA7CD4(1) #CWE-416 #Free pointer "next_tvb" only on this branch, while it is still in use in the program
             }
                 
         }

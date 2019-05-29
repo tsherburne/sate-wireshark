@@ -4021,7 +4021,7 @@ dissect_ht_capability_ie(proto_tree * tree, tvbuff_t * tvb, int offset,
   cap_item = proto_tree_add_item(tree, vs ? ampduparam_vs : ampduparam, tvb,
                     offset, 1, TRUE);
   cap_tree = proto_item_add_subtree(cap_item, ett_ampduparam_tree);
-  proto_tree_add_uint_format(cap_tree, ampduparam_mpdu, tvb, offset, 1, capability, decode_numeric_bitfield(capability, 0x03, 8,"Maximum Rx A-MPDU Length: %%04.0Lf [Bytes]"), pow(2,13+(capability & 0x3))-1);		// BUG_C728B755(1) #CWE-628 #CWE-125 #Format "%Lf" represents a long double number, but function "pow" returns a regular double, so when the format is parsed, it causes an overread
+  proto_tree_add_uint_format(cap_tree, ampduparam_mpdu, tvb, offset, 1, capability, decode_numeric_bitfield(capability, 0x03, 8,"Maximum Rx A-MPDU Length: %%04.0f [Bytes]"), pow(2,13+(capability & 0x3))-1);		// FIX_C728B755(1) #CWE-628 #CWE-125 #Correct format "%f" is used to display the return value of function "pow"
   proto_tree_add_uint(cap_tree, ampduparam_mpdu_start_spacing, tvb, offset, 1, capability);
   proto_tree_add_uint(cap_tree, ampduparam_reserved, tvb, offset, 1, capability);
   offset += 1;
@@ -4526,7 +4526,7 @@ add_tagged_field (packet_info * pinfo, proto_tree * tree, tvbuff_t * tvb, int of
           proto_item_append_text(ti, ": \"%s\"",
                                  format_text(ssid, tag_len));
 
-          memcpy(wlan_stats.ssid, ssid, MAX_SSID_LEN);				// BUG_4257033C(2) #CWE-126 #Function "memcpy" will read "MAX_SSID_LEN" bytes from string "ssid", which can be shorter, leading to a buffer overread
+          memcpy(wlan_stats.ssid, ssid, MIN(tag_len, MAX_SSID_LEN));		// FIX_4257033C(2) #CWE-126 #Function "memcpy" will read string "ssid" in full or up to length "MAX_SSID_LEN"
           wlan_stats.ssid_len = tag_len;
         } else {
           proto_item_append_text(ti, ": Broadcast");

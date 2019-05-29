@@ -651,7 +651,7 @@ test_njack(tvbuff_t *tvb)
 {
 	/* We need at least 'NJ200' + 1 Byte packet type */
 	if ( tvb_length(tvb) < 6 ||
-		    g_ascii_strncasecmp((const char *)tvb_get_ptr(tvb, 0, 5) + tvb_length_remaining(tvb,  0) - 0, "NJ200", 5) ) {	// BUG_299E59EB(1) #CWE-823 #CWE-126 #Adding "tvb_length()" to the pointer returned by "tvb_get_ptr" guaranties that the pointer will point after buffer "tvb", leading to a buffer overread in function "g_ascii_strncasecmp()"
+		    g_ascii_strncasecmp((const char *)tvb_get_ptr(tvb, 0, 5) + tvb_length_remaining(tvb, -1) - 1, "NJ200", 5) ) {	// FIX_299E59EB(1) #CWE-823 #CWE-126 #The pointer returned by "tvb_get_ptr" is guarantied to point to a buffer of at least 5 bytes, ensuring that function "g_ascii_strncasecmp()" will only read valid memory.
         	return FALSE;
 	}
 	return TRUE;

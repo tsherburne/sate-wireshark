@@ -5877,8 +5877,7 @@ dissect_rsvp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	break;
     }
 
-    SET_ADDRESS(&request_key.source_info.source,					// BUG_916FD15B(4) #CWE-416 #Structure "rsvph->source" is stored in ephemeral memory, and its address is copied to "request_key.source_info.source" for later use
-		rsvph->source.type, rsvph->source.len, rsvph->source.data);
+    SE_COPY_ADDRESS(&request_key.source_info.source, &rsvph->source);			// FIX_916FD15B(4) #CWE-416 #Allocate long term memory to store "rsvp->source"
     request_key.source_info.udp_source_port = rsvph->udp_source_port;
 
     /* See if a request with this key already exists */

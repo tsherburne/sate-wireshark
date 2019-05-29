@@ -911,8 +911,8 @@ bootp_option(tvbuff_t *tvb, proto_tree *bp_tree, int voff, int eoff,
 				break;
 
 			case 60:
-				*vendor_class_id_p =		// BUG_C75CCA7F(2) #CWE-823 #2 #Add offset calculated off tainted variable "consumed", making "vendor_class_id_p" point out of range
-				    tvb_get_ptr(tvb, voff+2, consumed-2)+consumed*voff;
+				*vendor_class_id_p =		// FIX_C75CCA7F(2) #CWE-823 #2 #Don't add an offset to pointer "vendor_class_id_p", so it points where it should
+				    tvb_get_ptr(tvb, voff+2, consumed-2);
 				break;
 			}
 		}
@@ -3911,6 +3911,7 @@ dissect_bootp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 			    24, 4, FALSE);
 
 	if (hlen > 0 && hlen <= 16) {
+		haddr = tvb_get_ptr(tvb, 28, hlen);				// FIX_B0954EED(2) #CWE-824 #Initialize pointer "haddr" with a proper value
 		if ((htype == ARPHRD_ETHER || htype == ARPHRD_IEEE802)
 		    && hlen == 6)
 			proto_tree_add_item(bp_tree, hf_bootp_hw_ether_addr, tvb, 28, 6, FALSE);

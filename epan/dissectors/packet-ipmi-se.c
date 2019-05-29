@@ -2740,7 +2740,7 @@ add_events(tvbuff_t *tvb, int offs, proto_tree *tree, const struct true_false_st
 	int len = tvb_length(tvb);								// BUG_28B3BB4B(4) FIX_28B3BB4B(4) #Read the packet length from the container, which was determined by tainted data
 	int i, j, val, msk;
 
-	for (i = 0; offs < len; i++, offs++) {							// BUG_28B3BB4B(5) #CWE-834 #Iterate from "offs" to "len"
+	for (i = 0; offs < len && i < sizeof tsel / sizeof *tsel; i++, offs++) {		// FIX_28B3BB4B(5) #CWE-834 #Iterate from "offs" to "len" or from 0 to "tsel's" size, whichever is lower
 		val = tvb_get_guint8(tvb, offs);
 		ti = proto_tree_add_text(tree, tvb, offs, 1, "%s (byte %d)", desc, i);
 		s_tree = proto_item_add_subtree(ti, *tsel[i]);					// BUG_28B3BB4B(6) FIX_28B3BB4B(6) #CWE-126 #Index "i" can be larger than the size of buffer "tsel" if "len" is large enough, causing an overread 

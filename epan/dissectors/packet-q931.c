@@ -3113,8 +3113,8 @@ dissect_q931_IEs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *root_tree,
 						proto_tree_add_text(ie_tree, tvb,
 							offset + 2, info_element_len,
 							"Data: %s",
-							bytes_to_str(									// BUG_256C7C53(2) #Pass invalid pointer as first parameter to function "bytes_to_str".
-							  tvb_get_ptr(tvb, offset + 2, info_element_len) + offset, info_element_len));	// BUG_256C7C53(1) #CWE-823 #Add offset to the pointer returned by function "tvb_get_ptr", making it point out-of-bound.
+							bytes_to_str(									// FIX_256C7C53(2) #Pass valid pointer as first parameter to function "bytes_to_str".
+							  tvb_get_ptr(tvb, offset + 2, info_element_len), info_element_len));		// FIX_256C7C53(1) #CWE-823 #The pointer returned by function "tvb_get_ptr" is valid.
 					}
 					break;
 				}

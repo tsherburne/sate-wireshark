@@ -259,12 +259,18 @@
 
 	if (!yyin) {
 		if (errno) {
-			g_string_append_printf(error, "Could not open file: '%s', error: %s\n", fullpaths[include_stack_ptr], g_strerror(errno) );
-			g_free(fullpaths[include_stack_ptr]);
-			fullpaths[include_stack_ptr] = NULL;
-			include_stack_ptr--;
-			yyterminate();
+			g_string_append_printf(error,
+					"Could not open file: '%s', error: %s\n",
+					fullpaths[include_stack_ptr],
+					g_strerror(errno) );
+		} else {
+			g_string_append_printf(error,
+					"Could not open file: '%s', no errno\n",
+					fullpaths[include_stack_ptr]);
 		}
+		g_free(fullpaths[include_stack_ptr]);
+		fullpaths[include_stack_ptr] = NULL;
+		include_stack_ptr--;
 	} else {
 		linenums[include_stack_ptr] = 1;
 		yy_switch_to_buffer(yy_create_buffer( yyin, YY_BUF_SIZE ) );
@@ -375,14 +381,14 @@ void add_attribute(const gchar* name, const  gchar* codestr, radius_attr_dissect
 	a->ett = -1;
 	a->tlvs_by_id = NULL;
 
-	if (a->name)
-		g_free((gpointer) a->name);					// BUG_80690AEF(1) #CWE-416 #Free pointer "a->name" but all references in hashtable "dict->attrs_by_name" are not updated yet
 	oldname = a->name;
 	a->name = g_strdup(name);
 
 	g_hash_table_insert(by_id, GUINT_TO_POINTER(code),a);
 	g_hash_table_insert(dict->attrs_by_name,(gpointer) (a->name),a);	// BUG_80690AEF(2) FIX_80690AEF(1) #CWE-416 #Leftover pointers to the freed memory in hashtable "dict->attrs_by_name" grants access to freed memory
 
+	if(oldname)
+		g_free((gpointer) oldname);					// FIX_80690AEF(2) #CWE-416 #Free memory after all references to it are updated
 }
 
 void add_tlv(const gchar* name, const  gchar* codestr, radius_attr_dissector_t type, const gchar* current_attr) {
@@ -512,60 +518,6 @@ static gboolean destroy_value_strings(gpointer k, gpointer v, gpointer p _U_) {
 	return TRUE;
 }
 
-static gboolean destroy_tlvs(gpointer k _U_, gpointer v, gpointer p _U_) {
-	radius_attr_info_t* s = v;
-	int i;
-
-	g_free((gpointer) (s->name));						// BUG_28025470(3) #Free buffer "a->name"
-
-	if (s->vs) {
-		for(i=0; s->vs[i].strptr; i++) {
-			g_free((void *)s->vs[i].strptr);
-		}
-		g_free((void *)s->vs);
-	}
-	g_free(s);
-	return TRUE;
-}
-
-static gboolean destroy_attrs(gpointer k _U_, gpointer v, gpointer p _U_) {
-	radius_attr_info_t* a = v;
-	int i;
-
-	g_free((gpointer) (a->name));
-	if (a->tlvs_by_id) {
-		g_hash_table_foreach_remove(a->tlvs_by_id, destroy_tlvs, p);
-		g_hash_table_destroy(a->tlvs_by_id);
-	}
-
-	if (a->vs) {
-		for(i=0; a->vs[i].strptr; i++) {
-			g_free((void *)a->vs[i].strptr);
-		}
-		g_free((void *)a->vs);
-	}
-	g_free(a);
-	return TRUE;
-}
-
-static gboolean destroy_vendors(gpointer k _U_, gpointer v, gpointer p) {
-	radius_vendor_info_t* vnd = v;
-	g_free( (gpointer) vnd->name);
-	g_hash_table_foreach_remove(vnd->attrs_by_id,destroy_attrs,p);
-	g_hash_table_destroy(vnd->attrs_by_id);
-	g_free(vnd);
-	return TRUE;
-}
-
-static void destroy_dict(radius_dictionary_t* d) {
-	g_hash_table_foreach_remove(d->attrs_by_id,destroy_attrs,NULL);		// BUG_28025470(2) #Destroy table "d->attrs_by_id" using callback "destroy_attrs"
-	g_hash_table_foreach_remove(d->vendors_by_id,destroy_vendors,NULL);
-	g_hash_table_destroy(d->vendors_by_id);
-	g_hash_table_destroy(d->attrs_by_id);
-	g_hash_table_destroy(d->vendors_by_name);
-	g_hash_table_destroy(d->attrs_by_name);
-	g_free(d);
-}
 
 gboolean radius_load_dictionary (radius_dictionary_t* d, gchar* dir, const gchar* filename, gchar** err_str) {
 	int i;
@@ -608,7 +560,6 @@ gboolean radius_load_dictionary (radius_dictionary_t* d, gchar* dir, const gchar
 	if (error->len > 0) {
 		*err_str = error->str;
 		g_string_free(error,FALSE);
-		destroy_dict(dict);						// BUG_28025470(1) #Destroy the dictionary if a parsing error occured
 		return FALSE;
 	} else {
 		*err_str = NULL;

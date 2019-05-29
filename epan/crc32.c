@@ -204,6 +204,7 @@ crc32_ccitt_tvb(tvbuff_t *tvb, guint len)
 {
   const guint8* buf;
 
+  tvb_ensure_bytes_exist(tvb, 0, len);										// FIX_220FD7EE(5) #Ensure enough data remains in the packet
 
   buf = tvb_get_ptr(tvb, 0, len);										// BUG_220FD7EE(5) FIX_220FD7EE(6) #Get a pointer to the packet's data
 
@@ -215,6 +216,7 @@ crc32_ccitt_tvb_offset(tvbuff_t *tvb, guint offset, guint len)
 {
   const guint8* buf;
   
+  tvb_ensure_bytes_exist(tvb, offset, len);									// FIX_220FD7EE(10) #Alternative path: ensure enough data remains in the packet
 
   buf = tvb_get_ptr(tvb, offset, len);
 
@@ -226,6 +228,7 @@ crc32_ccitt_tvb_seed(tvbuff_t *tvb, guint len, guint32 seed)
 {
   const guint8* buf;
 
+  tvb_ensure_bytes_exist(tvb, 0, len);										// FIX_220FD7EE(11) #Alternative path: ensure enough data remains in the packet
 
   buf = tvb_get_ptr(tvb, 0, len);
 
@@ -237,6 +240,7 @@ crc32_ccitt_tvb_offset_seed(tvbuff_t *tvb, guint offset, guint len, guint32 seed
 {
   const guint8* buf;
 
+  tvb_ensure_bytes_exist(tvb, offset, len);									// FIX_220FD7EE(12) #Alternative path: ensure enough data remains in the packet
 
   buf = tvb_get_ptr(tvb, offset, len);
 

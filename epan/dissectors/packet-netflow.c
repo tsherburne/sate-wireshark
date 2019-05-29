@@ -2728,6 +2728,12 @@ dissect_v9_options(proto_tree * pdutree, tvbuff_t * tvb, int offset, hdrinfo_t *
 			    offset, 2, FALSE);
 	offset += 2;
 
+	if (flowset_id == 3) {							// FIX_BE33920B(1) #7 #Sanity check on "option_len"
+	       if (option_len > option_scope_len || option_len == 0)
+			return 0;
+
+	       option_scope_len -= option_len;
+       }
 
 	scopes_offset = offset;
 
@@ -2775,20 +2781,20 @@ dissect_v9_options(proto_tree * pdutree, tvbuff_t * tvb, int offset, hdrinfo_t *
 	memset(&template, 0, sizeof(template));
 	template.id = id;
 
-	template.count = option_len/4;						// BUG_BE33920B(1) #CWE-131 #Initialize "template.count"
+	template.count = option_len;						// FIX_BE33920B(2) #CWE-131 #Initialize "template.count"
 
 	SE_COPY_ADDRESS(&template.source_addr, &hdrinfo->net_src);
 	template.source_id = hdrinfo->src_id;
 	/* Option scopes */
 
-	template.count_scopes = option_scope_len/4;
-	size = template.count_scopes * sizeof(struct v9_template_entry) + scope_pen_count * 4;
+	template.count_scopes = option_scope_len;
+    size = (template.count_scopes + scope_pen_count) * sizeof(struct v9_template_entry);
 	template.scopes      = g_malloc( size );
 	tvb_memcpy(tvb, (guint8 *)template.scopes, scopes_offset, size);
 
 	template.option_template = 1; /* Option template */
 	
-	size = template.count * sizeof(struct v9_template_entry) + pen_count * 4; // BUG_BE33920B(2) #CWE-131 #Incorrect calculation of array size, depending on the platform
+	size = (template.count + pen_count) * sizeof(struct v9_template_entry);	// FIX_BE33920B(3) #CWE-131 #Correct calculation of array size
 	template.entries = g_malloc(size);					// BUG_BE33920B(3) FIX_BE33920B(4) #CWE-131 #Allocate "size" byte to array "template.entries", which may be too small for its inteded purpose	 
 	tvb_memcpy(tvb, (guint8 *)template.entries, template_offset, size);
 
@@ -2876,9 +2882,9 @@ dissect_v9_template(proto_tree * pdutree, tvbuff_t * tvb, int offset, int len, h
 			}
 		}
 
-		template.entries = g_malloc(count * sizeof(struct v9_template_entry) + pen_count * 4);	// BUG_BE33920B(5) #CWE-131 #Alternative location where the amount of memory allocated for array "template.entries" can be incorrect on some platforms
+		template.entries = se_alloc((count + pen_count) * sizeof(struct v9_template_entry));	// FIX_BE33920B(6) #CWE-131 #Alternative location where the proper amount of memory for array "template.entries" is allocated
 		tvb_memcpy(tvb, (guint8 *)template.entries, field_start_offset,
-			count * sizeof(struct v9_template_entry) + pen_count * 4);
+			(count + pen_count) * sizeof(struct v9_template_entry));
 		v9_template_add(&template);								// BUG_BE33920B(6) FIX_BE33920B(7) #Call sink function
 		remaining -= 4 + sizeof(struct v9_template_entry) * count;
 		if (pen_count > 0) {
@@ -3166,13 +3172,14 @@ v9_template_add(struct v9_template *template)
 		template->length += template->scopes[i].length;
 	}
 
-	for (i = 0; i < template->count; i++) {								// BUG_BE33920B(7) #CWE-129 #Only check that index "i" remains within the bounds of array "template->entries", but the array is accessed by adding "pen_count" to "i" and the result can be greater than the array's size
+	for (i = 0; i + pen_count < template->count; i++) {						// FIX_BE33920B(8) #CWE-129 #Validate that index "i + pen_count" remains within the bounds of array "template->entries"
 		template->entries[i + pen_count].type = g_ntohs(template->entries[i + pen_count].type);	// BUG_BE33920B(8) FIX_BE33920B(9) #CWE-119 #5 #If not checked, index "i + pen_count" can be greater than the size of array "template->entries", causing both a buffer overread and overwrite
 		tmp_length = g_ntohs(template->entries[i + pen_count].length);
 		template->entries[i + pen_count].length = tmp_length == VARIABLE_LENGTH ? 0 : tmp_length;
 		template->length += template->entries[i + pen_count].length;
 		if (template->entries[i + pen_count].type & 0x8000) {
 			pen_count++;									// BUG_BE33920B(9) FIX_BE33920B(10) #CWE-129 #Increment index "pen_count"
+			if(i + pen_count < template->count)						// FIX_BE33920B(11) #CWE-129 #Validate that index "i + pen_count" remains within the bounds of array "template->entries"
 				*(guint32 *)&template->entries[i + pen_count] =				// BUG_BE33920B(10) FIX_BE33920B(12) #2 #CWE-119 #If not checked, index "i + pen_count" can be greater than the size of array "template->entries", causing both a buffer overread and overwrite
 					g_ntohl(*(guint32 *)&template->entries[i + pen_count]);
 		}

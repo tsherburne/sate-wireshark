@@ -647,6 +647,9 @@ sigcomp_init_udvm(void){
 	/*
 	 * Debug 	g_warning("Sigcomp init: Storing partial state =%s",partial_state_str);
 	 */
+   memset(sip_sdp_buff, 0, 8); //FIX_LIMBO(1) #CWE-119 #initialize the first 8 bytes of our buffers
+   sip_sdp_buff[0] = SIP_SDP_STATE_LENGTH >> 8;
+   sip_sdp_buff[1] = SIP_SDP_STATE_LENGTH & 0xff;
 
 	i = 0;
 	while ( i < SIP_SDP_STATE_LENGTH ){
@@ -668,6 +671,9 @@ sigcomp_init_udvm(void){
 
 	partial_state_str = bytes_to_str(presence_state_identifier, 6);
 
+   memset(presence_buff, 0, 8); //FIX_LIMBO(2) #CWE-119 #initialize the first 8 bytes of our buffers
+   presence_buff[0] = PRESENCE_STATE_LENGTH >> 8;
+   presence_buff[1] = PRESENCE_STATE_LENGTH & 0xff;
 
 	i = 0;
 	while ( i < PRESENCE_STATE_LENGTH ){
@@ -687,6 +693,7 @@ int udvm_state_access(tvbuff_t *tvb, proto_tree *tree,guint8 *buff,guint16 p_id_
    guint32     n;
    guint16     k;
 
+   guint16     buf_size_real; //FIX_LIMBO(3) #CWE-119 #Declaration of 'buf_size_real'
 
    guint16     byte_copy_right;
    guint16     byte_copy_left;
@@ -761,6 +768,7 @@ int udvm_state_access(tvbuff_t *tvb, proto_tree *tree,guint8 *buff,guint16 p_id_
     * FALSE          = Indicates that state_* is in the stored state 
     */
 
+   buf_size_real = (state_buff[0] << 8) | state_buff[1]; //FIX_LIMBO(4) #CWE-119 #initializing 'buf_size_real'
    /*
     * The value of
     * state_length MUST be taken from the returned item of state in the
@@ -769,9 +777,8 @@ int udvm_state_access(tvbuff_t *tvb, proto_tree *tree,guint8 *buff,guint16 p_id_
     * The same is true of state_address, state_instruction.
     */
 
-   if ( *state_length == 0 ){
-      *state_length = state_buff[0] << 8;
-      *state_length = *state_length | state_buff[1];   
+   if (*state_length == 0) { 
+      *state_length = buf_size_real;
    }
 
    if ( *state_address == 0 ){
@@ -787,12 +794,18 @@ int udvm_state_access(tvbuff_t *tvb, proto_tree *tree,guint8 *buff,guint16 p_id_
     * the state_value.
     */
 
+   if ((state_begin + *state_length) > buf_size_real) { //FIX_LIMBO(5) #CWE-119 #Checking boundaries of buffers
+      return 3;
+   }
 
    /*
     * Note that decompression failure will always occur if the state_length
     * operand is set to 0 but the state_begin operand is non-zero.
     */
 
+   if (*state_length == 0 && state_begin != 0) { //FIX_LIMBO(6) #CWE-119 #Missing conditions added: 'state_begin' is non-zero
+      return 17;
+   }
    n = state_begin + 8;
    k = *state_address; 
 

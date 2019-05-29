@@ -927,7 +927,7 @@ lan_24(tvbuff_t *tvb, proto_tree *tree)
 	guint i;
 	guint8 v, v1, v2;
 
-	for (i = 0; i <= 8; i++) {										// BUG_1B24CC26(1) #CWE-834 #The loop condition is off-by-one, letting "i" reach value 8
+	for (i = 0; i < 8; i++) {										// FIX_1B24CC26(1) #CWE-834 #The loop condition keeps "i" into an acceptable range of values
 		v = tvb_get_guint8(tvb, i + 1);
 		v1 = v & 0x0f;
 		v2 = v >> 4;

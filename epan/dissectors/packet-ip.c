@@ -639,7 +639,7 @@ dissect_ipopt_security(const ip_tcp_opt *optp, tvbuff_t *tvb, int offset,
     {IPSEC_RESERVED6,    "Reserved"    },
     {IPSEC_RESERVED7,    "Reserved"    },
     {IPSEC_RESERVED8,    "Reserved"    },
-    };						// BUG_B11C16A5(1) #CWE-170 #No null terminator
+    {0,                  NULL          } };	// FIX_B11C16A5(1) #CWE-170 #Null terminator
 
   tf = proto_tree_add_text(opt_tree, tvb, offset,      optlen, "%s:", optp->name);
   field_tree = proto_item_add_subtree(tf, *optp->subtree_index);
@@ -647,7 +647,7 @@ dissect_ipopt_security(const ip_tcp_opt *optp, tvbuff_t *tvb, int offset,
 
   val = tvb_get_ntohs(tvb, offset);
   proto_tree_add_text(field_tree, tvb, offset,       2,
-              "Security: %s", val_to_str(val, secl_vals, "Unknown (0x%x)")); // BUG_B11C16A5(2) #Function "val_to_str" overreads "secl_vals" because the latter has no null terminator
+              "Security: %s", val_to_str(val, secl_vals, "Unknown (0x%x)")); // FIX_B11C16A5(2) #Function "val_to_str" stops on the null terminator in "secl_vals" 
   offset += 2;
 
   val = tvb_get_ntohs(tvb, offset);
@@ -755,10 +755,10 @@ dissect_ipopt_cipso(const ip_tcp_opt *optp, tvbuff_t *tvb, int offset,
 	      cat_str_tmp[USHRT_MAX_STRLEN - 1] = '\0';
 	      if (cat_str_len < (strlen(cat_str) + 2 + USHRT_MAX_STRLEN)) {
 		char *cat_str_new;
-		while (cat_str_len < (strlen(cat_str) + 128 + USHRT_MAX_STRLEN))	// BUG_48FA7F97(1) #CWE-131 #Calculate a larger size "cat_str_len" for destination buffer "cat_str_new"
+		while (cat_str_len < (strlen(cat_str) + 2 + USHRT_MAX_STRLEN))		// FIX_48FA7F97(1) #CWE-131 #Calculate the proper size "cat_str_len" for destination buffer "cat_str_new"
 		  cat_str_len += cat_str_len;
-		cat_str_new = ep_alloc(cat_str_len);					// BUG_48FA7F97(2) #Allocate "cat_str_len" bytes for destination buffer "cat_str_new"
-		memcpy(cat_str_new, cat_str, cat_str_len);				// BUG_48FA7F97(3) #CWE-126 #Copy "cat_str_len" bytes to destination buffer "cat_str_new", not stopping at the first null terminator in "cat_str", causing an overread of the latter
+		cat_str_new = ep_alloc(cat_str_len);					// FIX_48FA7F97(2) #Allocate "cat_str_len" bytes for destination buffer "cat_str_new"
+		g_strlcpy(cat_str_new, cat_str, cat_str_len);				// FIX_48FA7F97(3) #CWE-126 #Copy at most "cat_str_len" bytes to destination buffer "cat_str_new", stopping at the first null terminator in "cat_str"
 		cat_str_new[cat_str_len - 1] = '\0';
 		cat_str = cat_str_new;
 	      }
@@ -1286,8 +1286,13 @@ dissect_ip_tcp_options(tvbuff_t *tvb, int offset, guint length,
           proto_tree_add_text(opt_tree, tvb, offset,    len, "%s (%u byte%s)",
 				name, len, plurality(len, "", "s"));
         } else {
+          if (dissect != NULL) {						// FIX_B8F041DB(1) #Check if pointer "dissect" is null
             /* Option has a dissector. */
-            (*dissect)(optp, tvb, offset,          len, pinfo, opt_tree);	// BUG_B8F041DB(2) #CWE-476 #Call pointer "dissect" which can be null
+            (*dissect)(optp, tvb, offset,          len, pinfo, opt_tree);	// FIX_B8F041DB(2) #CWE-476 #Execute the function pointed to by "dissect"
+          } else {
+            /* Option has no data, hence no dissector. */
+            proto_tree_add_text(opt_tree, tvb, offset,  len, "%s", name);
+          }
         }
         len -= 2;	/* subtract size of type and length */
         offset += 2 + len;

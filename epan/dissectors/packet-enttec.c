@@ -194,8 +194,8 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 		"%03x: %s",
 		"%3u: %s"
 	};
-	static guint8 dmx_data[512];					// BUG_2D623370(1) #Buffer allocated statically
-	static guint16 dmx_data_offset[513];				// BUG_2D623370(2) #Buffer allocated statically
+	guint8 *dmx_data = ep_alloc(512 * sizeof(guint8));		// FIX_2D623370(1) #Buffer moved to ep_allocated
+	guint16 *dmx_data_offset = ep_alloc(513 * sizeof(guint16));	// FIX_2D623370(2) #Buffer moved to ep_allocated
 	emem_strbuf_t *dmx_epstr;
 
 	proto_tree *hi,*si;
@@ -222,7 +222,7 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 					offset, 2, FALSE);
 	offset += 2;
 
-	if (length > 512)						// BUG_2D623370(3) #No check on index "ui"
+	if (length > 512 && ui < 512)					// FIX_2D623370(3) #Added check on index "ui"
 		length = 512;
 
 	if (type == ENTTEC_DATA_TYPE_RLE) {
@@ -237,7 +237,7 @@ dissect_enttec_dmx_data(tvbuff_t *tvb, guint offset, proto_tree *tree)
 				ci++;
 				v = tvb_get_guint8(tvb, offset+ci);
 				ci++;
-				for (i=0;i < count; i++) {		// BUG_2D623370(4) #No check on index "ui"
+				for (i=0;i < count && ui < 512;i++) {	// FIX_2D623370(4) #Added check on index "ui"
 					dmx_data[ui] = v;		// BUG_2D623370(5) FIX_2D623370(5) #CWE-119 #Index "ui" can be larger than the size of array "dmx_data", causing an overwrite.
 					dmx_data_offset[ui] = ci-3;
 					ui++;

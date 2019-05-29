@@ -169,6 +169,7 @@ int lanalyzer_open(wtap *wth, int *err, gchar **err_info)
 	while (1) {
 		if (file_seek(wth->fh, record_length, SEEK_CUR, err) == -1) {
 			g_free(wth->capture.lanalyzer);						// BUG_5EA75897(2) FIX_5EA75897(2) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+			wth->capture.lanalyzer = NULL;						// FIX_5EA75897(3) #Reset pointer "wth->catpure.lanalyzer"
 			return -1;
 		}
 		wth->data_offset += record_length;
@@ -179,9 +180,11 @@ int lanalyzer_open(wtap *wth, int *err, gchar **err_info)
 			*err = file_error(wth->fh);
 			if (*err != 0) {
 				g_free(wth->capture.lanalyzer);					// BUG_5EA75897(3) FIX_5EA75897(4) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+				wth->capture.lanalyzer = NULL;					// FIX_5EA75897(5) #Reset pointer "wth->catpure.lanalyzer"
 				return -1;
 			}
 			g_free(wth->capture.lanalyzer);						// BUG_5EA75897(4) FIX_5EA75897(6) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+			wth->capture.lanalyzer = NULL;						// FIX_5EA75897(7) #Reset pointer "wth->catpure.lanalyzer"
 			return 0;
 		}
 		wth->data_offset += 4;
@@ -200,9 +203,11 @@ int lanalyzer_open(wtap *wth, int *err, gchar **err_info)
 					*err = file_error(wth->fh);
 					if (*err != 0) {
 						g_free(wth->capture.lanalyzer);			// BUG_5EA75897(5) FIX_5EA75897(8) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+						wth->capture.lanalyzer = NULL;			// FIX_5EA75897(9) #Reset pointer "wth->catpure.lanalyzer"
 						return -1;
 					}
 					g_free(wth->capture.lanalyzer);				// BUG_5EA75897(6) FIX_5EA75897(10) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+					wth->capture.lanalyzer = NULL;				// FIX_5EA75897(11) #Reset pointer "wth->catpure.lanalyzer"
 					return 0;
 				}
 				wth->data_offset += sizeof summary;
@@ -246,6 +251,7 @@ int lanalyzer_open(wtap *wth, int *err, gchar **err_info)
 						break;
 					default:
 						g_free(wth->capture.lanalyzer);			// BUG_5EA75897(7) FIX_5EA75897(12) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+						wth->capture.lanalyzer = NULL;			// FIX_5EA75897(13) #Reset pointer "wth->catpure.lanalyzer"
 						*err = WTAP_ERR_UNSUPPORTED_ENCAP;
 						*err_info = g_strdup_printf("lanalyzer: board type %u unknown",
 						    board_type);
@@ -259,6 +265,7 @@ int lanalyzer_open(wtap *wth, int *err, gchar **err_info)
 				 * can read this header */
 				if (file_seek(wth->fh, -bytes_read, SEEK_CUR, err) == -1) {
 					g_free(wth->capture.lanalyzer);				// BUG_5EA75897(8) FIX_5EA75897(14) #CWE-415 #Free "wth->catpure.lanalyzer" on this path
+					wth->capture.lanalyzer = NULL;				// FIX_5EA75897(15) #Reset pointer "wth->catpure.lanalyzer"
 					return -1;
 				}
 				wth->data_offset -= bytes_read;
@@ -430,7 +437,10 @@ static gboolean lanalyzer_seek_read(wtap *wth, gint64 seek_off,
 static void
 lanalyzer_close(wtap *wth)
 {
-	g_free(wth->capture.lanalyzer);								// BUG_5EA75897(9) #CWE-415 #Free "wth->catpure.lanalyzer" possibly a second time
+	if(wth->capture.lanalyzer != NULL) {
+		g_free(wth->capture.lanalyzer);							// FIX_5EA75897(16) #CWE-415 #Free "wth->catpure.lanalyzer" only if the pointer is not null, indicating that the memory is still allocated
+		wth->capture.lanalyzer = NULL;
+	}
 }
 
 /*---------------------------------------------------

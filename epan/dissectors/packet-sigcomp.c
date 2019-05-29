@@ -424,7 +424,10 @@ try_again:
 	sigcomp_tree = proto_item_add_subtree(ti, ett_sigcomp);
 	i=0;
 	end_off_message = FALSE;
-	buff = g_malloc(length-offset);						// BUG_36CC316B(4) #CWE-190 #CWE-789 #CWE-248 #Since "length" is set at one and "offset" at two, the difference is negative and wraps around, causing a very large allocation of memory, causing "g_malloc" to throw an exception that isn't caught.
+	if(offset < length)							// FIX_36CC316B(4) #4 #CWE-190 #CWE-789 #CWE-248 #Check if "length" is larger than "offset", so the allocation size is positive, or return
+		buff = g_malloc(length-offset);
+	else
+		return -1;
 	if (udvm_print_detail_level>2)
 		proto_tree_add_text(sigcomp_tree, tvb, offset, -1,"Starting to remove escape digits");
 	while ((offset < length) && (end_off_message == FALSE)){

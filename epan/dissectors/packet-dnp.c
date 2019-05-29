@@ -2480,7 +2480,7 @@ dissect_dnp3_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
       memcpy(tmp_ptr, chk_ptr + data_offset, chk_size - data_offset);
       calc_crc = calculateCRC(chk_ptr, chk_size);
       offset += chk_size;
-      tmp_ptr += chk_size + data_offset;			// BUG_D5F4E690(6) #CWE-823 #Adding "data_offset" to pointer "tmp_ptr" instead of substracting it, causing the pointer to point potentially 2 bytes off
+      tmp_ptr += chk_size - data_offset;			// FIX_D5F4E690(6) #CWE-823 #Substract "data_offset" from pointer "tmp_ptr", ensuring it points to the proper location in memory
       act_crc = tvb_get_letohs(tvb, offset);
       offset += 2;
       crc_OK = calc_crc == act_crc;

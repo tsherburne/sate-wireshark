@@ -324,7 +324,7 @@ decompress_sigcomp_message(tvbuff_t *bytecode_tvb, tvbuff_t *message_tvb, packet
 	}
 	/* Largest allowed size for a message is 65535  */
 
-	out_buff = g_malloc(65535); // BUG_7DD70701(1) #Incorrect allocation: 65535 is one bye too short
+	out_buff = g_malloc(UDVM_MEMORY_SIZE); // FIX_7DD70701(1) #Correct allocation: 'UDVM_MEMORY_SIZE' = 65536
 	
 	/* Start executing code */
 	current_address = udvm_start_ip;
@@ -340,12 +340,12 @@ execute_next_instruction:
 		result_code = 15;
 		goto decompression_failure;
 	}
+	used_udvm_cycles++; // FIX_6553F682(1) #CWE-835 #Increment counter "used_udvm_cycles"
 
-	current_instruction = buff[current_address];		// BUG_F0469AF8(1) #CWE-119 #Index "current_address" can be larger than the size of buffer "buff", causing an overread.
+	current_instruction = buff[current_address & 0xffff];	// FIX_F0469AF8(1) #CWE-119 #The bit masking on index "current_address" prevents any overread of buffer "buff"
 
 	switch ( current_instruction ) {
 	case SIGCOMP_INSTR_DECOMPRESSION_FAILURE:
-		used_udvm_cycles++; // BUG_6553F682(2) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 
 		if ( result_code == 0 )
 			result_code = 9;
@@ -374,7 +374,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_AND: /* 1 AND ($operand_1, %operand_2) */
-		used_udvm_cycles++;// BUG_6553F682(3) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## AND(1) (operand_1, operand_2)",
@@ -405,7 +404,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(2) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(2) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -416,7 +415,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_OR: /* 2 OR ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(4) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## OR(2) (operand_1, operand_2)",
@@ -447,7 +445,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(3) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(3) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -458,7 +456,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_NOT: /* 3 NOT ($operand_1) */
-		used_udvm_cycles++; // BUG_6553F682(5) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## NOT(3) ($operand_1)",
@@ -482,7 +479,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(4) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(4) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -492,7 +489,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_LSHIFT: /* 4 LSHIFT ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(6) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## LSHIFT(4) ($operand_1, operand_2)",
@@ -523,7 +519,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(5) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(5) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -533,7 +529,6 @@ execute_next_instruction:
 
 		break;
 	case SIGCOMP_INSTR_RSHIFT: /* 5 RSHIFT ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(7) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## RSHIFT(5) (operand_1, operand_2)",
@@ -564,7 +559,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(6) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(6) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -573,7 +568,6 @@ execute_next_instruction:
 		goto execute_next_instruction;
 		break;
 	case SIGCOMP_INSTR_ADD: /* 6 ADD ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(8) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## ADD(6) (operand_1, operand_2)",
@@ -604,7 +598,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(7) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(7) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"               Loading result %u at %u",
 				result, result_dest);
@@ -613,7 +607,6 @@ execute_next_instruction:
 		goto execute_next_instruction;
 
 	case SIGCOMP_INSTR_SUBTRACT: /* 7 SUBTRACT ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(9) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## SUBTRACT(7) (operand_1, operand_2)",
@@ -644,7 +637,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(8) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(9) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"               Loading result %u at %u",
 				result, result_dest);
@@ -654,7 +647,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_MULTIPLY: /* 8 MULTIPLY ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(10) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ##MULTIPLY(8) (operand_1, operand_2)",
@@ -692,7 +684,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(9) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(9) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -702,7 +694,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_DIVIDE: /* 9 DIVIDE ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(11) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## DIVIDE(9) (operand_1, operand_2)",
@@ -742,7 +733,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(10) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(10) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -752,7 +743,6 @@ execute_next_instruction:
 		break;
 
 	case SIGCOMP_INSTR_REMAINDER: /* 10 REMAINDER ($operand_1, %operand_2) */
-		used_udvm_cycles++; // BUG_6553F682(12) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		if (show_instr_detail_level == 2 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,
 				"Addr: %u ## REMAINDER(10) (operand_1, operand_2)",
@@ -792,7 +782,7 @@ execute_next_instruction:
 		lsb = result & 0xff;
 		msb = result >> 8;
 		buff[result_dest] = msb;
-		buff[result_dest+1] = lsb;			// BUG_F0469AF8(11) #CWE-119 #Index "result_dest+1"" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest+1) & 0xffff] = lsb;		// FIX_F0469AF8(11) #CWE-119 #The bit masking on index "result_dest+1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading result %u at %u",
 				result, result_dest);
@@ -859,7 +849,7 @@ execute_next_instruction:
 		}
 		current_address = next_operand_address;
 
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(13) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(2) #CWE-835 #Increment counter "used_udvm_cycles" by "length" and not "length + 1" because we now increment the counter early in the loop.
 		n = 0;
 		k = position;
 		byte_copy_right = buff[66] << 8;
@@ -945,7 +935,7 @@ execute_next_instruction:
 		msb = value >> 8;
 
 		buff[address] = msb;
-		buff[address + 1] = lsb;			// BUG_F0469AF8(12) #CWE-119 #Index "address + 1" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(address + 1) & 0xffff] = lsb;		// FIX_F0469AF8(12) #CWE-119 #The bit masking on index "address + 1" prevents any overwrite of buffer "buff"
 
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"Addr: %u      Value %u",
@@ -953,7 +943,6 @@ execute_next_instruction:
 			proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"     Loading bytes at %u Value %u 0x%x",
 					address, value, value);
 		}
-		used_udvm_cycles++; // BUG_6553F682(14) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		current_address = next_operand_address;
 		goto execute_next_instruction;
 		break;
@@ -992,7 +981,7 @@ execute_next_instruction:
 		}
 		operand_address = next_operand_address;
 
-		used_udvm_cycles = used_udvm_cycles + 1 + n; // BUG_6553F682(15) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + n; // FIX_6553F682(3) #CWE-835 #Increment counter "used_udvm_cycles" by "n" and not "n + 1" because we now increment the counter early in the loop.
 		while ( n > 0) {
 			n = n - 1;
 			/* %value */
@@ -1004,7 +993,7 @@ execute_next_instruction:
 				goto decompression_failure;
 
 			buff[address] = msb;
-			buff[address + 1] = lsb;		// BUG_F0469AF8(13) #CWE-119 #Index "address + 1" can be larger than the size of buffer "buff", causing an overwrite.
+			buff[(address + 1) & 0xffff] = lsb;	// FIX_F0469AF8(13) #CWE-119 #The bit masking on index "address + 1" prevents any overwrite of buffer "buff"
 			/* debug
 			*/
 			length = next_operand_address - operand_address;
@@ -1103,7 +1092,6 @@ execute_next_instruction:
 		buff[stack_location] = (stack_fill >> 8) & 0x00FF;
 		buff[(stack_location+1) & 0xFFFF] = stack_fill & 0x00FF;
 
-		used_udvm_cycles++; // BUG_6553F682(16) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 		address = (stack_location + stack_fill * 2 + 2) & 0xFFFF;
 
 		if (address >= UDVM_MEMORY_SIZE - 1)
@@ -1117,7 +1105,6 @@ execute_next_instruction:
 			goto decompression_failure;
 		buff[destination] = (value >> 8) & 0x00FF;
 		buff[(destination+1) & 0xFFFF] = value & 0x00FF;
-		used_udvm_cycles++; // BUG_6553F682(17) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
 
 		goto execute_next_instruction;
 
@@ -1206,7 +1193,7 @@ execute_next_instruction:
 				position = byte_copy_left;
 			}
 		}
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(18) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(4) #CWE-835
 		goto execute_next_instruction;
 		break;
 
@@ -1298,9 +1285,9 @@ execute_next_instruction:
 			}
 		}
 		buff[result_dest] = k >> 8;
-		buff[result_dest + 1] = k & 0x00ff;			// BUG_F0469AF8(14) #CWE-119 #Index "result_dest + 1" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest + 1) & 0xffff] = k & 0x00ff;	// FIX_F0469AF8(14) #CWE-119 #The bit masking on index "result_dest + 1" prevents any overwrite of buffer "buff"
 
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(19) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(5) #CWE-835 #Increment counter "used_udvm_cycles" by "length" and not "length + 1" because we now increment the counter early in the loop.
 		goto execute_next_instruction;
 		break;
 
@@ -1429,9 +1416,9 @@ execute_next_instruction:
 			}
 		}
 		buff[result_dest] = k >> 8;
-		buff[result_dest + 1] = k & 0x00ff;			// BUG_F0469AF8(15) #CWE-119 #Index "result_dest + 1" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(result_dest + 1) & 0xffff] = k & 0x00ff;	// FIX_F0469AF8(15) #CWE-119 #The bit masking on index "result_dest + 1" prevents any overwrite of buffer "buff"
 
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(20) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(6) #CWE-835 #Increment counter "used_udvm_cycles" by "length" and not "length + 1" because we now increment the counter early in the loop.
 		goto execute_next_instruction;
 
 		break;
@@ -1508,7 +1495,7 @@ execute_next_instruction:
 			k = ( k + 1 ) & 0xffff;
 			n++;
 		}/* end while */
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(21) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(7) #CWE-835 #Increment counter "used_udvm_cycles" by "length" and not "length + 1" because we now increment the counter early in the loop.
 		goto execute_next_instruction;
 		break;
 
@@ -1748,7 +1735,7 @@ execute_next_instruction:
 			result_code = 6;
 			goto decompression_failure;
 		}
-		used_udvm_cycles = used_udvm_cycles + 1 + n; // BUG_6553F682(22) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + n; // FIX_6553F682(8) #CWE-835 #Increment counter "used_udvm_cycles" by "n" and not "n + 1" because we now increment the counter early in the loop.
 
 		goto execute_next_instruction;
 
@@ -1794,7 +1781,7 @@ execute_next_instruction:
 				operand_address, at_address);
 		}
 		 /* operand_value = (memory_address_of_instruction + D) modulo 2^16 */
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(23) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(9) #CWE-835 #Increment counter "used_udvm_cycles" by "length" and not "length + 1" because we now increment the counter early in the loop.
 
 		n = 0;
 		k = position;
@@ -1950,7 +1937,7 @@ execute_next_instruction:
 			k = ( k + 1 ) & 0xffff;
 			n++;
 		}
-		used_udvm_cycles = used_udvm_cycles + 1 + length; // BUG_6553F682(25) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + length; // FIX_6553F682(11) #CWE-835 #Increment counter "used_udvm_cycles" by "length" and not "length + 1" because we now increment the counter early in the loop.
 		current_address = next_operand_address;
 		goto execute_next_instruction;
 		break;
@@ -2049,7 +2036,7 @@ execute_next_instruction:
 		if (destination >= UDVM_MEMORY_SIZE - 1)
 			goto decompression_failure;
 		buff[destination] = msb;
-		buff[destination + 1]=lsb;			// BUG_F0469AF8(16) #CWE-119 #Index "destination + 1" can be larger than the size of buffer "buff", causing an overwrite.
+		buff[(destination + 1) & 0xffff]=lsb;		// FIX_F0469AF8(16) #CWE-119 #The bit masking on index "destination + 1" prevents any overwrite of buffer "buff"
 		if (print_level_1 ){
 			proto_tree_add_text(udvm_tree, message_tvb, input_address, 1,
 			"               Loading value: %u (0x%x) at Addr: %u, remaining_bits: %u", value, value, destination, remaining_bits);
@@ -2101,7 +2088,7 @@ execute_next_instruction:
 				current_address, destination, at_address, n, n, n, n, n);
 		}
 
-		used_udvm_cycles = used_udvm_cycles + 1 + n; // BUG_6553F682(26) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + n; // FIX_6553F682(12) #CWE-835 #Increment counter "used_udvm_cycles" by "n" and not "n + 1" because we now increment the counter early in the loop.
 		/*
 		 * Note that if n = 0 then the INPUT-HUFFMAN instruction is ignored and
 		 * program execution resumes at the following instruction.
@@ -2233,7 +2220,7 @@ execute_next_instruction:
 					if (destination >= UDVM_MEMORY_SIZE - 1)
 						goto decompression_failure;
 					buff[destination] = msb;
-					buff[destination + 1]=lsb;			// BUG_F0469AF8(17) #CWE-119 #Index "destination + 1" can be larger than the size of buffer "buff", causing an overwrite.
+					buff[(destination + 1) & 0xffff]=lsb;		// FIX_F0469AF8(17) #CWE-119 #The bit masking on index "destination + 1" prevents any overwrite of buffer "buff"
 					if (print_level_1 ){
 						proto_tree_add_text(udvm_tree, message_tvb, input_address, 1,
 					"               Loading H: %u (0x%x) at Addr: %u,j = %u remaining_bits: %u",
@@ -2342,7 +2329,7 @@ execute_next_instruction:
 		if ( result_code != 0 ){
 			goto decompression_failure;
 		}
-		used_udvm_cycles = used_udvm_cycles + 1 + state_length; // BUG_6553F682(27) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + state_length; // FIX_6553F682(13) #CWE-835 #Increment counter "used_udvm_cycles" by "state_length" and not "state_length + 1" because we now increment the counter early in the loop.
 		goto execute_next_instruction;
 		break;
 	case SIGCOMP_INSTR_STATE_CREATE: /* 32 */
@@ -2444,7 +2431,7 @@ execute_next_instruction:
 		state_instruction_buff[no_of_state_create] = state_instruction;
 		state_minimum_access_length_buff[no_of_state_create] = minimum_access_length;
 		state_state_retention_priority_buff[no_of_state_create] = state_retention_priority;
-		used_udvm_cycles = used_udvm_cycles + 1 + state_length; // BUG_6553F682(28) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + state_length; // FIX_6553F682(14) #CWE-835 #Increment counter "used_udvm_cycles" by "state_length" and not "state_length + 1" because we now increment the counter early in the loop.
 		/* Debug */
 		byte_copy_right = buff[66] << 8;
 		byte_copy_right = byte_copy_right | buff[67];
@@ -2587,7 +2574,7 @@ execute_next_instruction:
 			output_address ++;
 			n++;
 		}
-		used_udvm_cycles = used_udvm_cycles + 1 + output_length; // BUG_6553F682(29) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + output_length; // FIX_6553F682(15) #CWE-835 #Increment counter "used_udvm_cycles" by "output_length" and not "output_length + 1" because we now increment the counter early in the loop.
 		goto execute_next_instruction;
 		break;
 	case SIGCOMP_INSTR_END_MESSAGE: /* 35 */
@@ -2755,7 +2742,7 @@ execute_next_instruction:
 		/*
 		proto_tree_add_text(udvm_tree, decomp_tvb, 0, -1,"SigComp message Decompressed");
 		*/
-		used_udvm_cycles = used_udvm_cycles + 1 + state_length; // BUG_6553F682(30) #CWE-835 #The number of UDVM cycles MUST NOT be increased if a request for additional compressed data fails.
+		used_udvm_cycles = used_udvm_cycles + state_length; // FIX_6553F682(16) #CWE-835 #Increment counter "used_udvm_cycles" by "state_length" and not "state_length + 1" because we now increment the counter early in the loop.
 		proto_tree_add_text(udvm_tree, bytecode_tvb, 0, -1,"maximum_UDVM_cycles %u used_udvm_cycles %u",
 			maximum_UDVM_cycles, used_udvm_cycles);
 		return decomp_tvb;
@@ -2808,7 +2795,7 @@ decode_udvm_literal_operand(guint8 *buff,guint operand_address, guint16 *value)
 			 */
 			temp_data = buff[operand_address] & 0x1f;
 			operand = temp_data << 8;
-			temp_data = buff[operand_address + 1];			// BUG_F0469AF8(18) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data = buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(18) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 			operand = operand | temp_data;
 			*value = operand;
 			offset = offset + 2;
@@ -2820,7 +2807,7 @@ decode_udvm_literal_operand(guint8 *buff,guint operand_address, guint16 *value)
 			offset ++;
 			temp_data = buff[operand_address] & 0x1f;
 			operand = temp_data << 8;
-			temp_data = buff[operand_address + 1];			// BUG_F0469AF8(19) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data = buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(19) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 			operand = operand | temp_data;
 			*value = operand;
 			offset = offset + 2;
@@ -2873,12 +2860,12 @@ dissect_udvm_reference_operand(guint8 *buff,guint operand_address, guint16 *valu
 			 */
 			temp_data = buff[operand_address] & 0x3f;
 			operand = temp_data << 8;
-			temp_data = buff[operand_address + 1];			// BUG_F0469AF8(20) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data = buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(20) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 			operand = operand | temp_data;
 			operand = (operand * 2);
 			*result_dest = operand;
 			temp_data16 = buff[operand] << 8;
-			temp_data16 = temp_data16 | buff[operand+1];		// BUG_F0469AF8(21) #CWE-119 #Index "operand+1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data16 = temp_data16 | buff[(operand+1) & 0xffff];	// FIX_F0469AF8(21) #CWE-119 #The bit masking on index "operand+1" prevents any overread of buffer "buff"
 			*value = temp_data16;
 			offset = offset + 2;
 
@@ -2888,10 +2875,10 @@ dissect_udvm_reference_operand(guint8 *buff,guint operand_address, guint16 *valu
 			 */
 			operand_address++;
 			operand = buff[operand_address] << 8;
-			operand = operand | buff[operand_address + 1];			// BUG_F0469AF8(22) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+			operand = operand | buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(22) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 			*result_dest = operand;
 			temp_data16 = buff[operand] << 8;
-			temp_data16 = temp_data16 | buff[operand+1];			// BUG_F0469AF8(23) #CWE-119 #Index "operand+1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data16 = temp_data16 | buff[(operand+1) & 0xffff];		// FIX_F0469AF8(23) #CWE-119 #The bit masking on index "operand+1" prevents any overread of buffer "buff"
 			*value = temp_data16;
 			offset = offset + 3;
 
@@ -2904,7 +2891,7 @@ dissect_udvm_reference_operand(guint8 *buff,guint operand_address, guint16 *valu
 		operand = (operand * 2);
 		*result_dest = operand;
 		temp_data16 = buff[operand] << 8;
-		temp_data16 = temp_data16 | buff[operand+1];			// BUG_F0469AF8(24) #CWE-119 #Index "operand+1" can be larger than the size of buffer "buff", causing an overread.
+		temp_data16 = temp_data16 | buff[(operand+1) & 0xffff];		// FIX_F0469AF8(24) #CWE-119 #The bit masking on index "operand+1" prevents any overread of buffer "buff"
 		*value = temp_data16;
 		offset ++;
 	}
@@ -2961,7 +2948,7 @@ decode_udvm_multitype_operand(guint8 *buff,guint operand_address, guint16 *value
 		 */
 		memmory_addr = ( bytecode & 0x3f) * 2;
 		temp_data16 = buff[memmory_addr] << 8;
-		temp_data16 = temp_data16 | buff[memmory_addr+1];		// BUG_F0469AF8(25) #CWE-119 #Index "memmory_addr+1" can be larger than the size of buffer "buff", causing an overread.
+		temp_data16 = temp_data16 | buff[(memmory_addr+1) & 0xffff];	// FIX_F0469AF8(25) #CWE-119 #The bit masking on index "memmory_addr+1" prevents any overread of buffer "buff"
 		*value = temp_data16;
 		offset ++;
 		break;
@@ -2974,7 +2961,7 @@ decode_udvm_multitype_operand(guint8 *buff,guint operand_address, guint16 *value
 		 */
 			temp_data = buff[operand_address] & 0x1f;
 			operand = temp_data << 8;
-			temp_data = buff[operand_address + 1];			// BUG_F0469AF8(26) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data = buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(26) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 			operand = operand | temp_data;
 			*value = operand;
 			offset = offset + 2;
@@ -2986,7 +2973,7 @@ decode_udvm_multitype_operand(guint8 *buff,guint operand_address, guint16 *value
 		 */
 				temp_data = buff[operand_address] & 0x0f;
 				operand = temp_data << 8;
-				temp_data = buff[operand_address + 1];			// BUG_F0469AF8(27) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+				temp_data = buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(27) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 				operand = operand | temp_data;
 				operand = operand + 61440;
 				*value = operand;
@@ -3018,15 +3005,15 @@ decode_udvm_multitype_operand(guint8 *buff,guint operand_address, guint16 *value
 					 * 1000 0001 nnnnnnnn nnnnnnnn      memory[N]           0 - 65535
 					 */
 						offset ++;
-						temp_data16 = buff[operand_address + 1] << 8;				// BUG_F0469AF8(28) #CWE-119 #Index "operand_address + 1" can be larger than the size of buffer "buff", causing an overread.
-						temp_data16 = temp_data16 | buff[operand_address + 2];			// BUG_F0469AF8(29) #CWE-119 #Index "operand_address + 2" can be larger than the size of buffer "buff", causing an overread.
+						temp_data16 = buff[(operand_address + 1) & 0xffff] << 8;		// FIX_F0469AF8(28) #CWE-119 #The bit masking on index "operand_address + 1" prevents any overread of buffer "buff"
+						temp_data16 = temp_data16 | buff[(operand_address + 2) & 0xffff];	// FIX_F0469AF8(29) #CWE-119 #The bit masking on index "operand_address + 2" prevents any overread of buffer "buff"
 						/*  debug
 						 * g_warning("Reading 0x%x From address %u",temp_data16,operand_address);
 						 */
 						if ( (bytecode & 0x01) == 1 ){
 							memmory_addr = temp_data16;
 							temp_data16 = buff[memmory_addr] << 8;
-							temp_data16 = temp_data16 | buff[memmory_addr+1];		// BUG_F0469AF8(30) #CWE-119 #Index "memmory_addr+1" can be larger than the size of buffer "buff", causing an overread.
+							temp_data16 = temp_data16 | buff[(memmory_addr+1) & 0xffff];	// FIX_F0469AF8(30) #CWE-119 #The bit masking on index "memmory_addr+1" prevents any overread of buffer "buff"
 						}
 						*value = temp_data16;
 						offset = offset +2;
@@ -3053,9 +3040,9 @@ decode_udvm_multitype_operand(guint8 *buff,guint operand_address, guint16 *value
 		 */
 			memmory_addr = buff[operand_address] & 0x1f;
 			memmory_addr = memmory_addr << 8;
-			memmory_addr = memmory_addr | buff[operand_address + 1];		// BUG_F0469AF8(31) #CWE-119 #Index "operation_address + 1" can be larger than the size of buffer "buff", causing an overread.
+			memmory_addr = memmory_addr | buff[(operand_address + 1) & 0xffff];	// FIX_F0469AF8(31) #CWE-119 #The bit masking on index "operation_address + 1" prevents any overread of buffer "buff"
 			temp_data16 = buff[memmory_addr] << 8;
-			temp_data16 = temp_data16 | buff[memmory_addr+1];			// BUG_F0469AF8(32) #CWE-119 #Index "memmory_addr+1" can be larger than the size of buffer "buff", causing an overread.
+			temp_data16 = temp_data16 | buff[(memmory_addr+1) & 0xffff];		// FIX_F0469AF8(32) #CWE-119 #The bit masking on index "memmory_addr+1" prevents any overread of buffer "buff"
 			*value = temp_data16;
 			/*  debug
 			 * g_warning("Reading 0x%x From address %u",temp_data16,memmory_addr);

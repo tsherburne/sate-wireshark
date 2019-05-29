@@ -36,6 +36,7 @@
 #include <epan/packet.h>
 #include <etypes.h>
 
+#include <epan/expert.h>
 
 #include <epan/emem.h>
 #include "packet-bthci_acl.h"
@@ -422,10 +423,13 @@ dissect_configrequest(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_t
 	offset+=2;
 
 	if(tvb_length_remaining(tvb, offset)){
-		if(pinfo->p2p_dir==P2P_DIR_RECV)
-			config_data = &(psm_data->out);								// BUG_68DE1B7B(2) #Store address of "psm_data->in" in pointer "config_data", which is an invalid address if pointer "psm_data" is null
+		if (psm_data)											// FIX_68DE1B7B(2) #5 #Check value of pointer "psm_data" before using it
+			if(pinfo->p2p_dir==P2P_DIR_RECV)
+				config_data = &(psm_data->out);
+			else
+				config_data = &(psm_data->in);
 		else
-			config_data = &(psm_data->in); 								// BUG_68DE1B7B(3) #Store address of "psm_data->out" in pointer "config_data", which is an invalid address if pointer "psm_data" is null
+			config_data = NULL;									// FIX_68DE1B7B(3) #Set pointer "config_data" to null if pointer "psm_data" is null
 
 		offset=dissect_options(tvb, offset, pinfo, tree, length - 4, psm_data, config_data);		// BUG_68DE1B7B(4) FIX_68DE1B7B(4) #Pass pointer "config_data", which can be invalid, to function "dissect_options"
 	}
@@ -514,10 +518,13 @@ dissect_configresponse(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_
 	offset+=2;
 
 	if(tvb_length_remaining(tvb, offset)){
-		if(pinfo->p2p_dir==P2P_DIR_RECV)
-			config_data = &(psm_data->in);								// BUG_68DE1B7B(6) #Alternative path: store address of "psm_data->in" in pointer "config_data", which is an invalid address if pointer "psm_data" is null
+		if (psm_data)											// FIX_68DE1B7B(6) #5 #Alternative path: check value of pointer "psm_data" before using it
+			if(pinfo->p2p_dir==P2P_DIR_RECV)
+				config_data = &(psm_data->out);
+			else
+				config_data = &(psm_data->in);
 		else
-			config_data = &(psm_data->out);								// BUG_68DE1B7B(7) #Alternative path: store address of "psm_data->out" in pointer "config_data", which is an invalid address if pointer "psm_data" is null
+			config_data = NULL;									// FIX_68DE1B7B(7) #Alternative path: set pointer "config_data" to null if pointer "psm_data" is null
 
 		offset=dissect_options(tvb, offset, pinfo, tree, length - 6, psm_data, config_data);		// BUG_68DE1B7B(8) FIX_68DE1B7B(8) #Alternative path: pass pointer "config_data", which can be invalid, to function "dissect_options"
 	}
@@ -655,14 +662,20 @@ static void dissect_i_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	/*Segmented frames with SAR = start have an extra SDU length header field*/
 	if(segment == 0x01) {
 
+		proto_item *pi;
 
 		sdulen = tvb_get_letohs(tvb, offset);
 
-		proto_tree_add_item(btl2cap_tree, hf_btl2cap_sdulength, tvb, offset, 2, TRUE);
+		pi = proto_tree_add_item(btl2cap_tree, hf_btl2cap_sdulength, tvb, offset, 2, TRUE);
 
 		offset += 2;
 		length -= 6; /*Control, SDUlength, FCS*/
 
+		if (sdulen < length) {								// FIX_92F50CD2(1) #CWE-119 #2 #Using "sdulen" of at least the length of the first L2CAP I-frame.
+		       sdulen = length;
+		       expert_add_info_format(pinfo, pi, PI_MALFORMED, PI_WARN, 
+		                       "SDU length less than length of first packet");
+		}
 
 		if(!pinfo->fd->flags.visited){
 			mfp=se_alloc(sizeof(sdu_reassembly_t));

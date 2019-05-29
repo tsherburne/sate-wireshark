@@ -1503,7 +1503,7 @@ dissect_x509sat_SyntaxIA5String(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
 static int
 dissect_x509sat_SyntaxBMPString(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 #line 323 "x509sat.cnf"
-  tvbuff_t *wide_tvb;										// BUG_E02CFE60(1) #CWE-824 #Declare pointer "wide_tvb" without initializing it
+  tvbuff_t *wide_tvb = NULL;									// FIX_E02CFE60(1) #CWE-824 #Declare and initialize pointer "wide_tvb"
 
   char *string;
 
@@ -1512,6 +1512,8 @@ dissect_x509sat_SyntaxBMPString(gboolean implicit_tag _U_, tvbuff_t *tvb _U_, in
                                             &wide_tvb);
 
 #line 328 "x509sat.cnf"
+  if (!wide_tvb)										// FIX_E02CFE60(2) #CWE-824 #2 #Return if pointer "wide_tvb" is null
+    return offset;
   string = tvb_get_ephemeral_faked_unicode (wide_tvb, 0, tvb_length(wide_tvb) / 2, FALSE);	// BUG_E02CFE60(2) FIX_E02CFE60(3) #CWE-824 #Use of potentially uninitialized pointer "wide_tvb"
   proto_item_append_text(actx->created_item, " %s", string);	
 

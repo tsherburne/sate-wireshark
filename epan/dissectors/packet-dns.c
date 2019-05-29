@@ -617,6 +617,7 @@ get_dns_name(tvbuff_t *tvb, int offset, int max_len, int dns_data_offset,
 	 * to put the dissector into a loop.  Instead we throw an exception */
 
   maxname=MAXDNAME;
+  np=ep_alloc(maxname);							// FIX_52CA9094(2) #CWE-824 #Allocate memory for pointer "np".
   *name=np;
 
   maxname--;	/* reserve space for the trailing '\0' */

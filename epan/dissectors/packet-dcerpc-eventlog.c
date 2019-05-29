@@ -387,7 +387,7 @@ eventlog_dissect_element_Record_strings(tvbuff_t *tvb, int offset, packet_info *
 {
 	int *buf = alloca((num_of_strings + 1) * sizeof *buf);			// BUG_9B990EFD(1) FIX_9B990EFD(1) #Allocate a proper amount of memory on the stack for buffer "buf"
 
-	while(string_offset){							// BUG_9B990EFD(2) #CWE-834 #Don't check the value of variable "num_of_strings", used to index buffer "buf"
+	while(string_offset && num_of_strings){					// FIX_9B990EFD(2) #CWE-834 #Check the value of variable "num_of_strings", used to index buffer "buf", so the loop breaks if it reaches zero
 		char *str;
 		int len;
 		len=eventlog_get_unicode_string_length(tvb, string_offset);

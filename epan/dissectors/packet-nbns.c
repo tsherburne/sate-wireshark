@@ -466,8 +466,9 @@ nbns_add_nbns_flags(column_info *cinfo, proto_tree *nbns_tree, tvbuff_t *tvb, in
 
 #define MAX_BUF_SIZE (128+1)
 
+	buf=ep_alloc(MAX_BUF_SIZE);									// FIX_4E27A311(2) #CWE-824 #Allocate memory for pointer "buf".
 	opcode = (guint16) ((flags & F_OPCODE) >> OPCODE_SHIFT);
-	g_snprintf(buf, MAX_BUF_SIZE, "%s", val_to_str(opcode, opcode_vals, "Unknown operation"));	// BUG_4E27A311(2) #CWE-824 #Write to unitialized pointer "buf".
+	g_snprintf(buf, MAX_BUF_SIZE, "%s", val_to_str(opcode, opcode_vals, "Unknown operation"));	// FIX_4E27A311(3) #CWE-824 #Write to the freshly allocated memory pointed to by "buf".
 
 	if (flags & F_RESPONSE && !is_wack) {
 		g_strlcat(buf, " response", MAX_BUF_SIZE);

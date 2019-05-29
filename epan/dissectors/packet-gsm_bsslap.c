@@ -248,7 +248,6 @@ de_rrlp_ie(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint len _U_, gchar
 {
    guint32 curr_offset;
    tvbuff_t *rrlp_tvb;
-   static packet_info p_info;								// BUG_9ACE7B07(1) #Declare static structure "p_info" without initializing it
 
    guint16 length;
   
@@ -259,7 +258,7 @@ de_rrlp_ie(tvbuff_t *tvb, proto_tree *tree, guint32 offset, guint len _U_, gchar
    {
       rrlp_tvb = tvb_new_subset(tvb, curr_offset, length, length);
       if (bsslap_rrlp_handle)
-     	call_dissector(bsslap_rrlp_handle, rrlp_tvb, &p_info, tree);			// BUG_9ACE7B07(2) #Passing the address of uninitialized structure "p_info"
+        call_dissector(bsslap_rrlp_handle, rrlp_tvb, gsm_a_dtap_pinfo, tree);		// FIX_9ACE7B07(2) #Passing pointer "gsm_a_dtap_pinfo", which refers to a valid, initialized structure
    }
 
    curr_offset += length;
@@ -807,6 +806,7 @@ dissect_gsm_bsslap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	int	offset=0;
 	guint8 octet;
 
+	gsm_a_dtap_pinfo = pinfo;							// FIX_9ACE7B07(1) #CWE-824 #Save "pinfo" in pointer "gsm_a_dtap_pinfo"
 
 /* Make entries in Protocol column and Info column on summary display */
 	if (check_col(pinfo->cinfo, COL_PROTOCOL))
@@ -907,7 +907,7 @@ proto_register_gsm_bsslap(void)
 		},
 		{ &hf_gsm_bsslap_rrlp_flg,
 			{"RRLP Flag", "gsm_bsslap.rrlp_flg", 
-			FT_UINT8, BASE_DEC, TFS(&gsm_bsslap_rrlp_flg_vals), 0x01, 	// BUG_B11C16A5(8) #CWE-788 #Alternative location: use wrong type "FT_UINT8" for string array "gsm_bsslap_rrlp_flg_vals", which is a pair of strings and is not null-terminated
+			FT_BOOLEAN, 8, TFS(&gsm_bsslap_rrlp_flg_vals), 0x01,		// FIX_B11C16A5(8) #CWE-788 #Alternative location: use proper type "FT_BOOLEAN" for string array "gsm_bsslap_rrlp_flg_vals"
 			"Cause", HFILL }
 		},
 		{ &hf_gsm_bsslap_tfi,

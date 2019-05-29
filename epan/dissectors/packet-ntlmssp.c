@@ -957,8 +957,9 @@ dissect_ntlmssp_challenge (tvbuff_t *tvb, packet_info *pinfo, int offset,
 
   if (!conversation_get_proto_data(conversation, proto_ntlmssp)) {
     
+    conv_ntlmssp_info = se_alloc(sizeof(ntlmssp_info));	// FIX_A751D662(2) #CWE-824 #"conv_ntlmssp_info" is allocated before use.
     /* Insert the flags into the conversation */
-    conv_ntlmssp_info->flags = negotiate_flags;		// BUG_A751D662(2) #CWE-824 #Pointer "conv_ntlmssp_info" is uninitialized and dereferenced, causing an invalid pointer access.
+    conv_ntlmssp_info->flags = negotiate_flags;		// FIX_A751D662(3) #CWE-824 #Pointer "conv_ntlmssp_info" is valid and properly dereferenced.
     /* Insert the RC4 state information into the conversation */
     tvb_memcpy(tvb, challenge, offset, 8);
 

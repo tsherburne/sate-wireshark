@@ -3067,6 +3067,7 @@ static int rtps_util_add_bitmap(proto_tree *tree,
     for (j = 0; j < 32; ++j) {							// BUG_D5800C2A(5) FIX_D5800C2A(5) #Loop up to 32 using counter "j"
       datamask = (1 << (31-j));
 
+      if (idx < num_bits && idx < MAX_BITMAP_SIZE-1)				// FIX_D5800C2A(6) #Check if index "idx" remains in the proper range
         temp_buff[idx++] = ((data & datamask) == datamask) ? '1':'0';		// BUG_D5800C2A(6) FIX_D5800C2A(7) #CWE-121 #If index "idx" is not properly checked, it could exceed the size of array "temp_buff", causing a buffer overflow
       if (idx >= num_bits) {
         break;
@@ -3189,6 +3190,7 @@ static int rtps_util_add_fragment_number_set(proto_tree *tree,
     offset += 4;
     for (j = 0; j < 32; ++j) {							// BUG_533440B6(5) FIX_533440B6(5) #Loop up to 32 using counter "j"
       datamask = (1 << (31-j));
+      if (idx < num_bits && idx < MAX_BITMAP_SIZE-1)				// FIX_533440B6(6) #Check if index "idx" remains in the proper range
       temp_buff[idx++] = ((data & datamask) != 0) ? '1':'0';			// BUG_533440B6(6) FIX_533440B6(7) #CWE-121 #If index "idx" is not properly checked, it could exceed the size of array "temp_buff", causing a buffer overflow
       if (idx > num_bits) {
         break;

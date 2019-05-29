@@ -2990,7 +2990,7 @@ tvb_uncompress(tvbuff_t *tvb, int offset, int comprlen)
 			if (flags & (1 << 3)) {
 				/* A null terminated filename */
 
-				while (*c != '\0') {					// BUG_97AB29AD(4) #CWE-126 #Read from buffer "compr" without checking that pointer "c" is still within the bounds of the buffer, causing an overread
+				while ((c - compr) < comprlen && *c != '\0') {		// FIX_97AB29AD(4) #CWE-126 #Check if pointer "c" is still within the bounds of buffer "compr" before reading from it
 					c++;
 				}
 
@@ -3000,7 +3000,7 @@ tvb_uncompress(tvbuff_t *tvb, int offset, int comprlen)
 			if (flags & (1 << 4)) {
 				/* A null terminated comment */
 
-				while (*c != '\0') {					// BUG_97AB29AD(5) #CWE-126 #Alternative location causing a buffer overread
+				while ((c - compr) < comprlen && *c != '\0') {		// FIX_97AB29AD(2) #CWE-126 #Alternative location where a bound check was added to prevent a buffer overread
 					c++;
 				}
 
@@ -3061,9 +3061,9 @@ tvb_uncompress(tvbuff_t *tvb, int offset, int comprlen)
 			inflateEnd(strm);
 			g_free(strm);
 			g_free(strmbuf);
-			g_free(compr); // BUG_8CA9F2B4(1) #CWE-415 #Free "compr" on this path
 
 			if (uncompr == NULL) {
+				g_free(compr); // FIX_8CA9F2B4(1) #CWE-415 #Free "compr" on this path only if "uncompr" == NULL
 				return NULL;
 			}
 

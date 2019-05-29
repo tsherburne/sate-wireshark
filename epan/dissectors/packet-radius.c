@@ -894,7 +894,7 @@ static void dissect_attribute_value_pairs(proto_tree *tree, packet_info *pinfo, 
             item = proto_tree_add_text(tree, tvb, offset, 0,
                         "Not enough room in packet for AVP header");
             PROTO_ITEM_SET_GENERATED(item);
-            return;								// BUG_79A7B3EC(2) #CWE-460 #Return without cleanup, so the stack has a callback stacked on it that hasn't been popped, throwing off the program and ultimately leading to a crash.
+            break;								// FIX_79A7B3EC(2) #CWE-460 #Exit outer loop, then cleanup & return
         }
         avp_type = tvb_get_guint8(tvb,offset);
         avp_length = tvb_get_guint8(tvb,offset+1);
@@ -903,14 +903,14 @@ static void dissect_attribute_value_pairs(proto_tree *tree, packet_info *pinfo, 
             item = proto_tree_add_text(tree, tvb, offset, 0,
                         "AVP too short: length %u < 2", avp_length);
             PROTO_ITEM_SET_GENERATED(item);
-            return;								// BUG_79A7B3EC(3) #CWE-460 #Return without cleanup, so the stack has a callback stacked on it that hasn't been popped, throwing off the program and ultimately leading to a crash.
+            break;								// FIX_79A7B3EC(3) #CWE-460 #Exit outer loop, then cleanup & return
         }
 
         if (length < avp_length) {
             item = proto_tree_add_text(tree, tvb, offset, 0,
                         "Not enough room in packet for AVP");
             PROTO_ITEM_SET_GENERATED(item);
-            return;								// BUG_79A7B3EC(4) #CWE-460 #Return without cleanup, so the stack has a callback stacked on it that hasn't been popped, throwing off the program and ultimately leading to a crash.
+            break;								// FIX_79A7B3EC(4) #CWE-460 #Exit outer loop, then cleanup & return
         }
 
         length -= avp_length;
@@ -1002,7 +1002,7 @@ static void dissect_attribute_value_pairs(proto_tree *tree, packet_info *pinfo, 
                 if (avp_vsa_len < avp_vsa_header_len) {
                     proto_tree_add_text(tree, tvb, offset+1, 1,
                                             "[VSA too short]");
-                    return;							// BUG_79A7B3EC(5) #CWE-460 #Return without cleanup, so the stack has a callback stacked on it that hasn't been popped, throwing off the program and ultimately leading to a crash.
+                    break;							// FIX_79A7B3EC(5) #CWE-460 #Exit outer loop, then cleanup & return
                 }
 
                 avp_vsa_len -= avp_vsa_header_len;

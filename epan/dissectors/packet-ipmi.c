@@ -749,9 +749,9 @@ ipmi_add_typelen(proto_tree *tree, const char *desc, tvbuff_t *tvb,
 	len = typelen & msk;
 	ptr->get_len(&clen, &blen, tvb, offs + 1, len, is_fru);
 
-	str = ep_alloc(clen);				// BUG_27748E77(1) #CWE-193 #Allocate "clen" byte to buffer "str"
+	str = ep_alloc(clen + 1);			// FIX_27748E77(1) #CWE-193 #Allocate one extra byte for the null terminator
 	ptr->parse(str, tvb, offs + 1, clen);
-	str[clen] = '\0';				// BUG_27748E77(2) #CWE-118 #CWE-122 #Write a null terminator one byte farther than the end of buffer "str"
+	str[clen] = '\0';				// FIX_27748E77(2) #CWE-118 #Write the null terminator at the last byte of buffer "str"
 
 	ti = proto_tree_add_text(tree, tvb, offs, 1, "%s Type/Length byte: %s, %d %s",
 			desc, ptr->desc, len, unit);

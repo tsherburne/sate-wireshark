@@ -251,6 +251,7 @@ typedef struct wtapng_block_s {
 	/* XXX - currently don't know how to handle these! */
 	const union wtap_pseudo_header *pseudo_header;
 	const guchar *frame_buffer;
+	gsize allocated;
 } wtapng_block_t;
 
 typedef struct interface_data_s {
@@ -724,14 +725,31 @@ pcapng_read_packet_block(FILE_T fh, pcapng_block_header_t *bh, pcapng_t *pn, wta
 	              wblock->data.packet.cap_len,
 	              wblock->data.packet.interface_id);
 
+	if (wblock->data.packet.cap_len > wblock->allocated) {						// FIX_8B973D84(7) #Limit capture size
+		*err = WTAP_ERR_BAD_RECORD;
+		*err_info = g_strdup_printf("pcapng_read_packet_block: cap_len %u is larger than %zu.",
+			wblock->data.packet.cap_len, wblock->allocated);
+		return 0;
+	}
 
+	if (wblock->data.packet.packet_len > WTAP_MAX_PACKET_SIZE) {					// FIX_3E6EE6AF(7) #Limit packet size
+		*err = WTAP_ERR_BAD_RECORD;
+		*err_info = g_strdup_printf("pcapng_read_packet_block: packet_len %u is larger than WTAP_MAX_PACKET_SIZE %u.",
+			wblock->data.packet.packet_len, WTAP_MAX_PACKET_SIZE);
+		return 0;
+	}
 
 
 	/* XXX - implement other linktypes then Ethernet */
 	/* (or even better share the code with libpcap.c) */
 
-	/* Ethernet FCS length, might be overwritten by "per packet" options */
-	((union wtap_pseudo_header *) wblock->pseudo_header)->eth.fcs_len = pn->if_fcslen;		// BUG_3E7D5A5F(1) #CWE-476 #"wblock->pseudo_header" can be null and is dereferenced
+	if(wblock->pseudo_header != NULL) {								// FIX_3E7D5A5F(1) #Check if "wblock->pseudo_header" is null before dereferencing it
+		/* Ethernet FCS length, might be overwritten by "per packet" options */
+		((union wtap_pseudo_header *) wblock->pseudo_header)->eth.fcs_len = pn->if_fcslen;	// FIX_3E7D5A5F(2) #CWE-476 #"wblock->pseudo_header" is not null and can be safely dereferenced
+	} else {
+		pcapng_debug0("pcapng_read_packet_block: null pointer dereference");
+		return block_read;
+	}
 
 	/* "(Enhanced) Packet Block" read capture data */
 	errno = WTAP_ERR_CANT_READ;
@@ -856,7 +874,19 @@ pcapng_read_simple_packet_block(FILE_T fh, pcapng_block_header_t *bh, pcapng_t *
 					     - (guint32)sizeof(pcapng_simple_packet_block_t) 
 					     - (guint32)sizeof(bh->block_total_length);
 
+	if (wblock->data.simple_packet.cap_len > wblock->allocated) {						// FIX_8B973D84(10) #Limit capture size
+		*err = WTAP_ERR_BAD_RECORD;
+		*err_info = g_strdup_printf("pcapng_read_simple_packet_block: cap_len %u is larger than %zu.",
+			wblock->data.packet.cap_len, wblock->allocated);
+		return 0;
+	}
 
+	if (wblock->data.simple_packet.packet_len > WTAP_MAX_PACKET_SIZE) {				// FIX_3E6EE6AF(12) #Limit packet size
+		*err = WTAP_ERR_BAD_RECORD;
+		*err_info = g_strdup_printf("pcapng_read_simple_packet_block: packet_len %u is larger than WTAP_MAX_PACKET_SIZE %u.",
+			wblock->data.simple_packet.packet_len, WTAP_MAX_PACKET_SIZE);
+		return 0;
+	}
 
 	/*g_pcapng_debug1("pcapng_read_simple_packet_block: packet data: packet_len %u",
 			  wblock->data.simple_packet.packet_len);*/
@@ -864,8 +894,13 @@ pcapng_read_simple_packet_block(FILE_T fh, pcapng_block_header_t *bh, pcapng_t *
 	/* XXX - implement other linktypes then Ethernet */
 	/* (or even better share the code with libpcap.c) */
 
-	/* Ethernet FCS length, might be overwritten by "per packet" options */
-	((union wtap_pseudo_header *) wblock->pseudo_header)->eth.fcs_len = pn->if_fcslen;		// BUG_ED75DEF0(1) #CWE-476 #"wblock->pseudo_header" can be null and is dereferenced
+	if(wblock->pseudo_header != NULL) {								// FIX_ED75DEF0(1) #Check if "wblock->pseudo_header" is null before dereferencing it
+		/* Ethernet FCS length, might be overwritten by "per packet" options */
+		((union wtap_pseudo_header *) wblock->pseudo_header)->eth.fcs_len = pn->if_fcslen;	// FIX_ED75DEF0(2) #CWE-476 #"wblock->pseudo_header" is not null and can be safely dereferenced
+	} else {
+		pcapng_debug0("pcapng_read_packet_block: null pointer dereference");
+		return block_read;
+	}
 
 	/* "Simple Packet Block" read capture data */
 	errno = WTAP_ERR_CANT_READ;
@@ -1130,6 +1165,7 @@ pcapng_open(wtap *wth, int *err, gchar **err_info)
 	pn.number_of_interfaces = 0;
 
 	/* we don't expect any packet blocks yet */
+	wblock.allocated = 0;
 	wblock.frame_buffer = NULL;
 	wblock.pseudo_header = NULL;
 
@@ -1188,6 +1224,8 @@ pcapng_read(wtap *wth, int *err, gchar **err_info, gint64 *data_offset)
 	/* XXX - this probably won't work well with unlimited / per packet snapshot length */
 	buffer_assure_space(wth->frame_buffer, wth->snapshot_length);
 
+	buffer_assure_space(wth->frame_buffer, MAX(wth->snapshot_length, 1502));
+	wblock.allocated = buffer_length(wth->frame_buffer);
 	wblock.frame_buffer = buffer_start_ptr(wth->frame_buffer);
 	wblock.pseudo_header = &wth->pseudo_header;
 
@@ -1260,6 +1298,7 @@ pcapng_seek_read(wtap *wth, gint64 seek_off,
 	}
 	pcapng_debug1("pcapng_seek_read: reading at offset %" G_GINT64_MODIFIER "u", seek_off);
 
+	wblock.allocated = length;
 	wblock.frame_buffer = pd;
 	wblock.pseudo_header = pseudo_header;
 

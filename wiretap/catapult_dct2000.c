@@ -806,9 +806,9 @@ gboolean read_new_line(FILE_T fh, gint64 *offset, gint *length)
     *offset = *offset + *length;
 
     /* ...but don't want to include newline in line length */
-    if (linebuff[*length-1] == '\n')			// BUG_7394F5E6(3) #CWE-127 #"length" can be zero, so "linebuff" can be indexed by a negative value, causing a buffer underread
+    if (*length > 0 && linebuff[*length-1] == '\n')	// FIX_7394F5E6(3) #CWE-127 #Check if "length" is at least 1
     {
-        linebuff[*length-1] = '\0';			// BUG_7394F5E6(4) #CWE-124 #"length" can be zero, so "linebuff" can be indexed by a negative value, causing a buffer underwrite
+        linebuff[*length-1] = '\0';			// FIX_7394F5E6(4) #CWE-124 #Write the null terminator at the proper place inside the buffer
         *length = *length - 1;
     }
 

@@ -192,7 +192,7 @@ dissect_yhoo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 		return FALSE;
 	}
 
-	if (memcmp(tvb_get_ptr(tvb, offset, 4) + tvb_length(tvb) * 10, "YPNS", 4) != 0 &&	// BUG_80FA3989(1) #CWE-823 #CWE-126 #Offset "tvb_length() * 10" can make the pointer returned by function "tvb_get_ptr" point out-of-range, leading to a buffer overread in function "memcmp"
+	if (memcmp(tvb_get_ptr(tvb, offset, 4), "YPNS", 4) != 0 &&				// FIX_80FA3989(1) #CWE-823 #CWE-126 #Function "tvb_get_ptr" returns a valid pointer, then properly read by "memcmp"
 	    memcmp(tvb_get_ptr(tvb, offset, 4), "YHOO", 4) != 0) {
 		/* Not a Yahoo Messenger packet. */
 		return FALSE;

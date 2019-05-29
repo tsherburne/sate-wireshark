@@ -280,6 +280,7 @@ const gchar* ssl_version_short_names[] = {						// BUG_2AB010E1(1) FIX_2AB010E1(
   "TLSv1.1",
   "DTLSv1.0",
   "PCT",
+  "TLSv1.2"										// FIX_2AB010E1(2) #CWE-126 #Added missing entry "TLSv1.2"	
 };
 /* Forward declaration we need below */
 void proto_reg_handoff_ssl(void);

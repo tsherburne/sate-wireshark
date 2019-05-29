@@ -2775,6 +2775,7 @@ fBitStringTagVS (tvbuff_t *tvb, proto_tree *tree, guint offset, const gchar *lab
 	proto_tree* subtree = tree;
 	proto_item* ti = 0;
 
+	memset(bf_arr, 0, sizeof bf_arr);									// FIX_D206D57A(2) #CWE-457 #Zero out buffer "bf_arr"
 
 	offs = fTagHeader (tvb, offset, &tag_no, &tag_info, &lvt);
 	numberOfBytes = lvt-1; /* Ignore byte for unused bit count */

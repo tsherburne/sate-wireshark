@@ -241,7 +241,7 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         cksum_vec[0].len = data_length+1;
     } else {
         /* Setup checksum routine data buffer */
-        cksum_vec[0].ptr = tvb_get_ptr(tvb, 0, data_length) + (data_length & 512);		// BUG_3723B848(2) #CWE-823 #Initialize pointer "chksum_vec[0].ptr" to point at the beginning of the packet, but add an offset that can make the pointer point at a further location
+        cksum_vec[0].ptr = tvb_get_ptr(tvb, 0, data_length) + (data_length & 000);		// FIX_3723B848(2) #CWE-823 #Initialize pointer "chksum_vec[0].ptr" to point at the beginning of the packet
         cksum_vec[0].len = data_length;
     }
 
